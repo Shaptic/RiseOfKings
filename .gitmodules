@@ -1,0 +1,3 @@
+[submodule "zogl"]
+	path = zogl
+	url = https://github.com/Shaptic/zogl.git
