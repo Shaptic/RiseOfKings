@@ -10,6 +10,31 @@ function getAlignedPos(pos) {
     };
 }
 
+function createGrid(units, position) {
+    var w = (units.length <= 4) ? units.length : Math.ceil(Math.sqrt(units.length));
+    var h = units.length / w;
+
+    var result = [];
+    var x = 0, y = 0;
+
+    for (var i = 0; i < units.length; i++) {
+        result.push({
+            'x': x + position.x,
+            'y': y + position.y
+        });
+
+        x += 32;
+        if (x >= w * 32) {
+            x = 0;
+            y += 32;
+        }
+    };
+
+    log(result);
+
+    return result;
+}
+
 function init() {
     var w = new zogl.zWindow(800, 600);
     w.init();
@@ -18,15 +43,14 @@ function init() {
     texture.loadFromFile("tank.png");
 
     var scene = new zogl.zScene(0, 0, { "lighting": false });
-    
+
     var units = []
     var q = new zogl.zQuad(32, 32);
     q.attachTexture(texture);
     q.create();
 
     for (var i = 0; i < 10; ++i) {
-        units.push(scene.addObject());
-        units[i].addObject(q);
+        units.push(scene.addObject(rUnit, ["tank"]));
         units[i].move(32*2*i, 100);
     }
 
@@ -51,7 +75,6 @@ function init() {
     }, false);
 
     var selected = [];
-    var orders = [];
 
     glGlobals.canvas.addEventListener("mousemove", function(evt) {
         if (!selecting) return;
@@ -97,25 +120,13 @@ function init() {
         q.create();
 
         if (evt.button == 2) {  // RMB
-
-            // remove units from existing orders
-            for (var i in orders) {
-                for (var j in selected) {
-                    var unit = selected[j].unit;
-
-                    var len = orders[i].units.length;
-                    for (var k = len - 1; k >= 0; --k) {
-                        if (orders[i].units[k] == unit) {
-                            orders[i].units.slice(k, 1);
-                        } 
-                    }
-                }
+            positions = createGrid(selected, getAlignedPos(zogl.getMousePosition(evt)));
+            for (var i in selected) {
+                selected[i].unit.setOrder({
+                    "type": "move",
+                    "position": positions[i]
+                });
             }
-
-            orders.push({
-                "selection": selected,
-                "position": getAlignedPos(zogl.getMousePosition(evt))
-            });
         }
     }, false);
 
@@ -124,34 +135,16 @@ function init() {
         q = new zogl.zQuad(1, 1);
         q.setColor(1.0, 1.0, 1.0, 0.0);
         q.create();
-    }, false);    
+    }, false);
 
     var game = function() {
         w.clear('#000000');
-        scene.draw();
 
-        var len = orders.length - 1;
-        for (var j = len; j >= 0; --j) {
-            var order = orders[j];
-            var done = true;
-
-            for (var i in order.selection) {
-                var un  = order.selection[i].unit;
-                var sel = order.selection[i].bar;
-                un.adjust(
-                    un.getX() < order.position.x ? +2 : -2,
-                    un.getY() < order.position.y ? +2 : -2
-                );
-                sel.move(un.getX(), un.getY() - 3);
-
-                if (!un.collides(new zogl.rect(order.position.x,
-                                               order.position.y, 10, 10))) {
-                    done = false;
-                }   
-            }
-
-            if (done) orders.splice(j, 1);
+        for (var i in units) {
+            units[i].update();
         }
+
+        scene.draw();
 
         if (selecting) {
             gl.enable(gl.BLEND);
@@ -161,6 +154,8 @@ function init() {
         }
 
         for (var i in selected) {
+            selected[i].bar.move(selected[i].unit.getX(),
+                                 selected[i].unit.getY() - 3);
             selected[i].bar.draw();
         }
 
