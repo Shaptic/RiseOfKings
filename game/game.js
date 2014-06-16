@@ -49,9 +49,48 @@ function init() {
     q.attachTexture(texture);
     q.create();
 
-    for (var i = 0; i < 10; ++i) {
+    var playerColors = [];
+    for (var i = 0; i < 2; ++i) {
+        playerColors[i] = new zogl.zShader();
+    }
+
+    playerColors[0].loadFromString(zogl.SHADERS.defaultvs, [
+        'precision mediump float;',
+
+        'varying vec2 vs_texc;',
+        'varying vec4 vs_color;',
+
+        'uniform sampler2D texture;',
+
+        'void main(void) {',
+            'gl_FragColor = vec4(1.0, 0, 0, 1.0) + texture2D(texture, vs_texc);',
+        '}'
+    ].join('\n'));
+
+    playerColors[1].loadFromString(zogl.SHADERS.defaultvs, [
+        'precision mediump float;',
+
+        'varying vec2 vs_texc;',
+        'varying vec4 vs_color;',
+
+        'uniform sampler2D texture;',
+
+        'void main(void) {',
+            'gl_FragColor = vec4(0.0, 0, 1.0, 1.0) + texture2D(texture, vs_texc);',
+        '}'
+    ].join('\n'));
+
+    var UNIT_COUNT = 10;
+    for (var i = 0; i < UNIT_COUNT; ++i) {
         units.push(scene.addObject(rUnit, ["tank"]));
         units[i].move(32*2*i, 100);
+        if (i >= UNIT_COUNT / 2) {
+            units[i].addPass(playerColors[0]);
+            units[i].color = "red";
+        } else {
+            units[i].addPass(playerColors[1]);
+            units[i].color = "blue";
+        }
     }
 
     var selecting = false;
@@ -114,18 +153,44 @@ function init() {
     }, false);
 
     glGlobals.canvas.addEventListener("mouseup", function(evt) {
+        var pos = zogl.getMousePosition(evt);
+
         selecting = false;
         q = new zogl.zQuad(1, 1);
         q.setColor(1.0, 1.0, 1.0, 0.0);
         q.create();
 
-        if (evt.button == 2) {  // RMB
-            positions = createGrid(selected, getAlignedPos(zogl.getMousePosition(evt)));
+        if (evt.button == 2 && selected.length) {  // RMB
+            positions = createGrid(selected, getAlignedPos(pos));
+
+            order = {
+                "position": pos,
+                "type": "move"
+            };
+
+            var target = null;
+            for (var j in units) {
+                if (units[j].color == selected[0].unit.color) {
+                    continue;
+                } else if (units[j].collides(pos.x, pos.y)) {
+                    target = units[j];
+                    break;
+                }
+            }
+
             for (var i in selected) {
-                selected[i].unit.setOrder({
-                    "type": "move",
-                    "position": positions[i]
-                });
+                var order = {
+                    "position": target != null ? 
+                                { 'x': target.getX(), 'y': target.getY() } :
+                                positions[i],
+                    "type": target != null ? "attack" : "move"
+                };
+
+                if (target != null) { 
+                    order.target = target;
+                }
+
+                selected[i].unit.setOrder(order);
             }
         }
     }, false);
@@ -154,9 +219,20 @@ function init() {
         }
 
         for (var i in selected) {
-            selected[i].bar.move(selected[i].unit.getX(),
-                                 selected[i].unit.getY() - 3);
-            selected[i].bar.draw();
+            if (selected[i].bar.size.w != Math.floor(32 * (selected[i].unit.health / 100.0)) && 
+                selected[i].unit.health > 0) {
+                selected[i].bar = new zogl.zQuad();
+                selected[i].bar.resize(Math.floor(32 * (selected[i].unit.health / 100.0)), 2);
+                selected[i].bar.setColor("#00FF00");
+                selected[i].bar.create();
+            }
+
+            if (selected[i].unit.health > 0) {
+                selected[i].bar.move(selected[i].unit.getX(),
+                                     selected[i].unit.getY() - 3);
+                selected[i].bar.draw();
+
+            }
         }
 
         requestAnimationFrame(game);

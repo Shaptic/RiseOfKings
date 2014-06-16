@@ -39,9 +39,12 @@ rUnit = function(type) {
     }
 
     this.orders = [];
+    this.health = 100;
     this.attribs = {
-        "speed": 2
-    }
+        "speed": 2,
+        "damage": 1,
+        "range": 36
+    };
 }
 rUnit.prototype = new zogl.zSprite();
 rUnit.prototype.constructor = rUnit;
@@ -56,14 +59,75 @@ rUnit.prototype.addOrder = function(order) {
 };
 
 rUnit.prototype.update = function() {
-    if (this.orders.length) {
-        this.adjust(
-            this.orders[0].position.x > this.getX() ? this.attribs.speed : -this.attribs.speed,
-            this.orders[0].position.y > this.getY() ? this.attribs.speed : -this.attribs.speed
-        );
+    if (this.health <= 0) {
+        this.disable();
+        return;
+    }
 
-        if (this.collides(this.orders[0].position.x, this.orders[0].position.y)) {
+    if (this.orders.length) {
+        if (this.orders[0].type == "attack" && 
+            this.orders[0].target.health == 0) {
             this.orders.splice(0, 1);
+
+        } else if (this.orders[0].type == "move") {
+            if (!this.collides(this.orders[0].position.x,
+                               this.orders[0].position.y)) {
+                this.adjust(
+                    this.orders[0].position.x > this.getX() ? this.attribs.speed : -this.attribs.speed,
+                    this.orders[0].position.y > this.getY() ? this.attribs.speed : -this.attribs.speed
+                );
+            } else {
+                this.orders.splice(0, 1);
+            }
+
+        } else if (this.orders[0].type == "attack") {
+            var enemy = this.orders[0].target;
+
+            // If w/in range, do damage.
+            // Find center points.
+            if (Math.sqrt(Math.pow(enemy.getX() - this.getX(), 2) + 
+                          Math.pow(enemy.getY() - this.getY(), 2)
+                ) <= this.attribs.range) {
+                enemy.doDamage(this);
+
+            // Otherwise, move towards the target.
+            } else {
+                var order = this.orders[0];
+                this.setOrder({
+                    "position": {
+                        'x': enemy.getX(),
+                        'y': enemy.getY()
+                    },
+                    "type": "move"
+                });
+
+                this.addOrder({
+                    "target": enemy,
+                    "type": "attack"
+                });
+            }
         }
     }
 }
+
+rUnit.prototype.doDamage = function(obj) {
+    this.health -= obj.attribs.damage;
+
+    // if we are not currently attacking this unit, make it an order
+    // to do so soon.
+    for (var i in this.orders) {
+        if (this.orders.type == "attack" && 
+            this.orders.target == obj) {
+            return;
+        }
+    }
+
+    this.addOrder({
+        "position": {
+            'x': obj.getX(),
+            'y': obj.getY()
+        }, 
+        "target": obj,
+        "type": "attack"
+    });
+};
