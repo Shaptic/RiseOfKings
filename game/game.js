@@ -30,8 +30,6 @@ function createGrid(units, position) {
         }
     };
 
-    log(result);
-
     return result;
 }
 
@@ -82,7 +80,7 @@ function init() {
 
     var UNIT_COUNT = 10;
     for (var i = 0; i < UNIT_COUNT; ++i) {
-        units.push(scene.addObject(rUnit, ["tank"]));
+        units.push(scene.addObject(rUnit, [i > UNIT_COUNT / 2 ? "tank" : "archer"]));
         units[i].move(32*2*i, 100);
         if (i >= UNIT_COUNT / 2) {
             units[i].addPass(playerColors[0]);
