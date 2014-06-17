@@ -92,7 +92,7 @@ rUnit.prototype.update = function() {
     }
 
     if (this.orders.length) {
-        if (this.orders[0].type == "attack" && 
+        if (this.orders[0].type == "attack" &&
             this.orders[0].target.health == 0) {
             this.orders.splice(0, 1);
 
@@ -113,10 +113,10 @@ rUnit.prototype.update = function() {
             // If w/in range, do damage.
             // Find center points.
 
-            var dist = Math.pow(enemy.getX() - this.getX(), 2) + 
+            var dist = Math.pow(enemy.getX() - this.getX(), 2) +
                        Math.pow(enemy.getY() - this.getY(), 2);
 
-            if (dist <= Math.pow(this.attribs.range * 32, 2) && 
+            if (dist <= Math.pow(this.attribs.range * 32, 2) &&
                 dist >= Math.pow(this.attribs.minrange || 0, 2)) {
                 enemy.doDamage(this);
 
@@ -138,7 +138,7 @@ rUnit.prototype.doDamage = function(obj) {
     // if we are not currently attacking this unit, make it an order
     // to do so soon.
     for (var i in this.orders) {
-        if (this.orders.type == "attack" && 
+        if (this.orders.type == "attack" &&
             this.orders.target == obj) {
             return;
         }
@@ -148,7 +148,7 @@ rUnit.prototype.doDamage = function(obj) {
         "position": {
             'x': obj.getX(),
             'y': obj.getY()
-        }, 
+        },
         "target": obj,
         "type": "attack"
     });

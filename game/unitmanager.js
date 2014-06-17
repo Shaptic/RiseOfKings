@@ -13,13 +13,14 @@ rUnitManager.prototype.orderUnits = function(obj, position, order) {
 
     this.assignments.push({
         "object": obj,
-        "ai": new rPathfinder()
+        "ai": new rPathfinder(this.map)
     });
 
     var latest = this.assignments[this.assignments.length - 1];
-    var then = new zogl.zSprite();
-    then.move(position.x, position.y);
-    latest.ai.findPath(obj, then);
+    latest.ai.findPath({
+        'x': obj.getX(),
+        'y': obj.getY()
+    }, position);
 
     log(latest.ai.path);
 

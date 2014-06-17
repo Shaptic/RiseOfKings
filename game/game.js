@@ -41,6 +41,26 @@ function init() {
         playerColors[i] = new zogl.zShader();
     }
 
+    var tx = new zogl.zTexture();
+    tx.loadFromFile("grass.png");
+
+    var spriteQ = new zogl.zQuad(800, 600);
+    spriteQ.attachTexture(tx);
+    spriteQ.create();
+
+    mapSprite = scene.addObject();
+    mapSprite.addObject(spriteQ);
+
+    for (var i = 0; i < 800; i += 32) {
+        map[i] = {};
+        for (var j = 0; j < 600; j += 32) {
+            map[i][j] = {
+                'x': i,
+                'y': j
+            };
+        }
+    }
+
     playerColors[0].loadFromString(zogl.SHADERS.defaultvs, [
         'precision mediump float;',
 
@@ -79,6 +99,11 @@ function init() {
             units[i].color = "blue";
         }
     }
+
+    var gameMap = new rMap();
+    gameMap.tiles = map;
+    gameMap.units = units;
+    unitMgr.map = gameMap;
 
     var selecting = false;
     var selectionRect = {
@@ -167,19 +192,19 @@ function init() {
 
             for (var i in selected) {
                 var order = {
-                    "position": target != null ? 
+                    "position": target != null ?
                                 { 'x': target.getX(), 'y': target.getY() } :
                                 positions[i],
                     "type": target != null ? "attack" : "move"
                 };
 
-                if (target != null) { 
+                if (target != null) {
                     order.target = target;
                 }
 
                 unitMgr.orderUnits(
                     selected[i].unit,
-                    order.position, 
+                    order.position,
                     order
                 );
             }
@@ -202,12 +227,6 @@ function init() {
 
         scene.draw();
 
-        for (var i in map) {
-            for (var j in map[i]) {
-                map[i][j].draw();
-            }
-        }
-
         if (selecting) {
             gl.enable(gl.BLEND);
             gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
@@ -216,7 +235,7 @@ function init() {
         }
 
         for (var i in selected) {
-            if (selected[i].bar.size.w != Math.floor(32 * (selected[i].unit.health / 100.0)) && 
+            if (selected[i].bar.size.w != Math.floor(32 * (selected[i].unit.health / 100.0)) &&
                 selected[i].unit.health > 0) {
                 selected[i].bar = new zogl.zQuad();
                 selected[i].bar.resize(Math.floor(32 * (selected[i].unit.health / 100.0)), 2);
@@ -228,7 +247,6 @@ function init() {
                 selected[i].bar.move(selected[i].unit.getX(),
                                      selected[i].unit.getY() - 3);
                 selected[i].bar.draw();
-
             }
         }
 
