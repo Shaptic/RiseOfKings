@@ -12,11 +12,11 @@ for (var i = 0; i < 800; i += 32) {
 }
 
 function getTileAt(x, y) {
-    map[x][y];
-}
-
-var rPathfinder = function() {
-    this.path = [];
+    var pos = getAlignedPos({
+        'x': x,
+        'y': y
+    });
+    return map[pos.x][pos.y];
 }
 
 var Node = function() {
@@ -26,6 +26,10 @@ var Node = function() {
     this.move_count = 0;
     this.heuristic = 0;
 };
+
+var rPathfinder = function() {
+    this.path = [];
+}
 
 rPathfinder.prototype.findPath = function(start, end) {
     this.path = [];
@@ -68,7 +72,9 @@ rPathfinder.prototype.findPath = function(start, end) {
                 var tile = getTileAt(currentNode.tile.getX(), 
                                      currentNode.tile.getY());
 
-                if (tile === null) continue;
+                log('tile', tile);
+
+                if (tile == null) continue;
 
                 /*
                 var rect = currentNode.tile.rect;
@@ -94,7 +100,7 @@ rPathfinder.prototype.findPath = function(start, end) {
                 var open = false;
                 for (var i in openList) {
                     if (openList[i].tile == tile) {
-                        if (openList[i].cost < h + openList[i].parent.move_count + 1)) {
+                        if (openList[i].cost < h + openList[i].parent.move_count + 1) {
                             openList[i].parent = currentNode;
                             openList[i].move_count = openList[i].parent.move_count + 1;
                             openList[i].heuristic = h;
@@ -119,6 +125,8 @@ rPathfinder.prototype.findPath = function(start, end) {
             }
         }
     }
+
+    log('closed list', closedList);
 
     this.current = 0;
     if (openList.length == 0) {

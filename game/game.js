@@ -1,15 +1,3 @@
-function getAlignedPos(pos) {
-    off = {
-        x: pos.x % 32,
-        y: pos.y % 32
-    };
-
-    return {
-        'x': pos.x + (off.x < 32 ? -off.x : off.x),
-        'y': pos.y + (off.y < 32 ? -off.y : off.y)
-    };
-}
-
 function createGrid(units, position) {
     var w = (units.length <= 4) ? units.length : Math.ceil(Math.sqrt(units.length));
     var h = units.length / w;
@@ -42,7 +30,8 @@ function init() {
 
     var scene = new zogl.zScene(0, 0, { "lighting": false });
 
-    var units = []
+    var units = [];
+    var unitMgr = new rUnitManager();
     var q = new zogl.zQuad(32, 32);
     q.attachTexture(texture);
     q.create();
@@ -188,7 +177,11 @@ function init() {
                     order.target = target;
                 }
 
-                selected[i].unit.setOrder(order);
+                unitMgr.orderUnits(
+                    selected[i].unit,
+                    order.position, 
+                    order
+                );
             }
         }
     }, false);
@@ -208,6 +201,12 @@ function init() {
         }
 
         scene.draw();
+
+        for (var i in map) {
+            for (var j in map[i]) {
+                map[i][j].draw();
+            }
+        }
 
         if (selecting) {
             gl.enable(gl.BLEND);
@@ -231,6 +230,10 @@ function init() {
                 selected[i].bar.draw();
 
             }
+        }
+
+        for (var i in unitMgr.assignments) {
+            unitMgr.assignments[i].ai.showPath();
         }
 
         requestAnimationFrame(game);

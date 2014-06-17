@@ -1,3 +1,15 @@
+function getAlignedPos(pos) {
+    off = {
+        x: pos.x % 32,
+        y: pos.y % 32
+    };
+
+    return {
+        'x': pos.x + (off.x < 32 ? -off.x : off.x),
+        'y': pos.y + (off.y < 32 ? -off.y : off.y)
+    };
+}
+
 /*
  * Sample order format:
  *  {
@@ -59,6 +71,7 @@ rUnit = function(type) {
     this.orders = [];
     this.health = 100;
     this.attribs = UNIT_ATTRIBUTES[type];
+    this.ai = new rPathfinder();
 }
 rUnit.prototype = new zogl.zSprite();
 rUnit.prototype.constructor = rUnit;
