@@ -62,7 +62,6 @@ rUnit = function(type) {
         var q = new zogl.zQuad(32, 32);
         q.attachTexture(tx);
         q.create();
-
         this.addObject(q);
     } else {
         throw("bad type: " + type);

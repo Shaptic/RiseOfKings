@@ -46,10 +46,13 @@ function init() {
 
     var spriteQ = new zogl.zQuad(800, 600);
     spriteQ.attachTexture(tx);
-    spriteQ.create();
-
     mapSprite = scene.addObject();
-    mapSprite.addObject(spriteQ);
+
+    tx.setOnload(function() {
+        spriteQ.attribs.repeat = true;
+        spriteQ.create();
+        mapSprite.addObject(spriteQ);
+    });
 
     for (var i = 0; i < 800; i += 32) {
         map[i] = {};
