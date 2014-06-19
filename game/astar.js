@@ -33,7 +33,6 @@ rMap.prototype.isCollideableAt = function(x, y) {
     for (var i in this.units) {
         if (parseInt(this.units[i].getX()) == parseInt(x) &&
             parseInt(this.units[i].getY()) == parseInt(y)) {
-            log('rect', this.units[i].rect, 'pos', pos);
             return pos;
         }
     }
@@ -92,16 +91,11 @@ rPathfinder.prototype.findPath = function(start, end) {
 
         for (var x = -1; x <= 1; ++x) {
             for (var y = -1; y <= 1; ++y) {
-                // todo
                 var tile = this.map.getTileAt(currentNode.tile.x + (32 * x),
                                               currentNode.tile.y + (32 * y));
 
-                log('tile', tile);
-
                 if (tile == null) continue;
 
-                var rect = currentNode.tile;
-                //log(this.map.isCollideableAt(rect.x, rect.y));
                 if (this.map.isCollideableAt(tile.x, tile.y) !== null) {
                     continue;
                 }
@@ -147,15 +141,15 @@ rPathfinder.prototype.findPath = function(start, end) {
         }
     }
 
-    log('closed list', closedList, 'open list', openList);
-
     this.current = 0;
     if (openList.length == 0) {
         return false;
     }
 
-    for (var i = closedList.length - 1; i >= 0; --i) {
-        this.path.push(closedList[i].tile);
+    for (var node = closedList[closedList.length - 1];
+             node != null;
+             node = node.parent) {
+        this.path.push(node.tile);
     }
 
     return true;

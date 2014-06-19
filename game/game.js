@@ -89,8 +89,14 @@ function init() {
 
     var UNIT_COUNT = 10;
     for (var i = 0; i < UNIT_COUNT; ++i) {
+        var pos = getAlignedPos({
+            'x': 32 * 2 * i,
+            'y': 100
+        });
+
         units.push(scene.addObject(rUnit, [i > UNIT_COUNT / 2 ? "tank" : "archer"]));
-        units[i].move(32*2*i, 100);
+        units[i].move(pos.x, pos.y);
+
         if (i >= UNIT_COUNT / 2) {
             units[i].addPass(playerColors[0]);
             units[i].color = "red";
@@ -251,7 +257,7 @@ function init() {
         }
 
         for (var i in unitMgr.assignments) {
-            unitMgr.assignments[i].ai.showPath();
+            //unitMgr.assignments[i].ai.showPath();
         }
 
         requestAnimationFrame(game);

@@ -22,14 +22,14 @@ rUnitManager.prototype.orderUnits = function(obj, position, order) {
         'y': obj.getY()
     }, position);
 
-    log(latest.ai.path);
-
-    for (var i = 0; i < latest.ai.path.length - 1; ++i) {
+    obj.orders = [];
+    for (var i = latest.ai.path.length - 2; i > 0; --i) {
         obj.addOrder({
             "position": {
-                'x': latest.path[i].getX(),
-                'y': latest.path[i].getY(),
-            }
+                'x': latest.ai.path[i].x,
+                'y': latest.ai.path[i].y,
+            },
+            "type": "move"
         });
     }
 
