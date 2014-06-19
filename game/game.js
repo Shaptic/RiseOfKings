@@ -1,3 +1,17 @@
+/*
+ * TODO:
+ *
+ * [*] Smoother movement.
+ * [ ] Make pathfinding occur only once for groups.
+ * [ ] Fix the freeze that occurs when attacking (pathfinding related?).
+ * [ ] Map panning.
+ * [ ] Utility file.
+ * [ ] Refactor into armies / players.
+ * [ ] Automatic attacking when w/in range.
+ * [ ] Minimum attack range.
+ * [ ] Frame-rate independent move speed.
+ */
+
 function createGrid(units, position) {
     var w = (units.length <= 4) ? units.length : Math.ceil(Math.sqrt(units.length));
     var h = units.length / w;
@@ -11,10 +25,10 @@ function createGrid(units, position) {
             'y': y + position.y
         });
 
-        x += 32;
-        if (x >= w * 32) {
+        x += TILE_SIZE;
+        if (x >= w * TILE_SIZE) {
             x = 0;
-            y += 32;
+            y += TILE_SIZE;
         }
     };
 
@@ -22,7 +36,7 @@ function createGrid(units, position) {
 }
 
 function init() {
-    var w = new zogl.zWindow(800, 600);
+    var w = new zogl.zWindow(WINDOW_SIZE.w, WINDOW_SIZE.h);
     w.init();
 
     var texture = new zogl.zTexture();
@@ -32,7 +46,7 @@ function init() {
 
     var units = [];
     var unitMgr = new rUnitManager();
-    var q = new zogl.zQuad(32, 32);
+    var q = new zogl.zQuad(TILE_SIZE, TILE_SIZE);
     q.attachTexture(texture);
     q.create();
 
@@ -44,7 +58,7 @@ function init() {
     var tx = new zogl.zTexture();
     tx.loadFromFile("grass.png");
 
-    var spriteQ = new zogl.zQuad(800, 600);
+    var spriteQ = new zogl.zQuad(WINDOW_SIZE.w, WINDOW_SIZE.h);
     spriteQ.attachTexture(tx);
     mapSprite = scene.addObject();
 
@@ -54,9 +68,9 @@ function init() {
         mapSprite.addObject(spriteQ);
     });
 
-    for (var i = 0; i < 800; i += 32) {
+    for (var i = 0; i < WINDOW_SIZE.w; i += TILE_SIZE) {
         map[i] = {};
-        for (var j = 0; j < 600; j += 32) {
+        for (var j = 0; j < WINDOW_SIZE.h; j += TILE_SIZE) {
             map[i][j] = {
                 'x': i,
                 'y': j
@@ -93,7 +107,7 @@ function init() {
     var UNIT_COUNT = 10;
     for (var i = 0; i < UNIT_COUNT; ++i) {
         var pos = getAlignedPos({
-            'x': 32 * 2 * i,
+            'x': TILE_SIZE * 2 * i,
             'y': 100
         });
 
@@ -161,7 +175,7 @@ function init() {
         for (var i = 0; i < units.length; ++i) {
             if (units[i].collides(newsize)) {
                 var h = new zogl.zQuad();
-                h.resize(32, 2);
+                h.resize(TILE_SIZE, 2);
                 h.setColor("#00FF00");
                 h.create();
                 h.move(units[i].getX(), units[i].getY() - 3);
@@ -244,10 +258,10 @@ function init() {
         }
 
         for (var i in selected) {
-            if (selected[i].bar.size.w != Math.floor(32 * (selected[i].unit.health / 100.0)) &&
+            if (selected[i].bar.size.w != Math.floor(TILE_SIZE * (selected[i].unit.health / 100.0)) &&
                 selected[i].unit.health > 0) {
                 selected[i].bar = new zogl.zQuad();
-                selected[i].bar.resize(Math.floor(32 * (selected[i].unit.health / 100.0)), 2);
+                selected[i].bar.resize(Math.floor(TILE_SIZE * (selected[i].unit.health / 100.0)), 2);
                 selected[i].bar.setColor("#00FF00");
                 selected[i].bar.create();
             }
@@ -257,10 +271,6 @@ function init() {
                                      selected[i].unit.getY() - 3);
                 selected[i].bar.draw();
             }
-        }
-
-        for (var i in unitMgr.assignments) {
-            //unitMgr.assignments[i].ai.showPath();
         }
 
         requestAnimationFrame(game);

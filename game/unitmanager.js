@@ -7,7 +7,6 @@ rUnitManager.prototype.orderUnits = function(obj, position, order) {
         for (var i in obj) {
             this.orderUnit(obj[i]);
         }
-
         return;
     }
 

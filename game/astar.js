@@ -16,10 +16,8 @@ rMap.prototype.getTileAt = function(x, y) {
         'y': y
     });
 
-    log('at', pos);
-
-    if (pos.x < 0 || pos.x >= 800 ||
-        pos.y < 0 || pos.y >= 600) return null;
+    if (pos.x < 0 || pos.x >= WINDOW_SIZE.w ||
+        pos.y < 0 || pos.y >= WINDOW_SIZE.h) return null;
 
     return map[pos.x][pos.y];
 };
@@ -31,8 +29,13 @@ rMap.prototype.isCollideableAt = function(x, y) {
     });
 
     for (var i in this.units) {
-        if (parseInt(this.units[i].getX()) == parseInt(x) &&
-            parseInt(this.units[i].getY()) == parseInt(y)) {
+        var unit_pos = getAlignedPos({
+            'x': this.units[i].getX(),
+            'y': this.units[i].getY()
+        });
+
+        if (parseInt(unit_pos.x) == parseInt(x) &&
+            parseInt(unit_pos.y) == parseInt(y)) {
             return pos;
         }
     }
@@ -63,6 +66,14 @@ rPathfinder.prototype.findPath = function(start, end) {
     node.tile = start;
     openList.push(node);
 
+    if (this.map.isCollideableAt(end)) {
+        end.x += TILE_SIZE;
+        if (end.x >= TILE_SIZE) end.x -= 2 * TILE_SIZE;
+
+        end.y += TILE_SIZE;
+        if (end.y >= TILE_SIZE) end.y -= 2 * TILE_SIZE;
+    }
+
     while (openList.length) {
         var idx = 0;
         var min_cost = openList[idx].cost;
@@ -91,8 +102,8 @@ rPathfinder.prototype.findPath = function(start, end) {
 
         for (var x = -1; x <= 1; ++x) {
             for (var y = -1; y <= 1; ++y) {
-                var tile = this.map.getTileAt(currentNode.tile.x + (32 * x),
-                                              currentNode.tile.y + (32 * y));
+                var tile = this.map.getTileAt(currentNode.tile.x + (TILE_SIZE * x),
+                                              currentNode.tile.y + (TILE_SIZE * y));
 
                 if (tile == null) continue;
 
@@ -109,8 +120,8 @@ rPathfinder.prototype.findPath = function(start, end) {
 
                 if (closed) continue;
 
-                var h = Math.abs(end.x - tile.x) / 32 +
-                        Math.abs(end.y - tile.y) / 32;
+                var h = Math.abs(end.x - tile.x) / TILE_SIZE +
+                        Math.abs(end.y - tile.y) / TILE_SIZE;
 
                 var open = false;
                 for (var i in openList) {
@@ -157,7 +168,7 @@ rPathfinder.prototype.findPath = function(start, end) {
 
 rPathfinder.prototype.showPath = function() {
     for (var i in this.path) {
-        var q = new zogl.zQuad(32, 32);
+        var q = new zogl.zQuad(TILE_SIZE, TILE_SIZE);
         q.move(this.path[i].x, this.path[i].y);
         q.create();
         q.draw();

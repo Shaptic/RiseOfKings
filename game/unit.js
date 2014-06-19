@@ -1,12 +1,16 @@
+function in_range(val, min, max) {
+    return val >= min && val <= max;
+}
+
 function getAlignedPos(pos) {
     off = {
-        x: pos.x % 32,
-        y: pos.y % 32
+        x: pos.x % TILE_SIZE,
+        y: pos.y % TILE_SIZE
     };
 
     return {
-        'x': pos.x + (off.x < 32 ? -off.x : off.x),
-        'y': pos.y + (off.y < 32 ? -off.y : off.y)
+        'x': pos.x + (off.x < TILE_SIZE ? -off.x : off.x),
+        'y': pos.y + (off.y < TILE_SIZE ? -off.y : off.y)
     };
 }
 
@@ -37,7 +41,7 @@ var UNIT_ATTRIBUTES = {
 };
 
 var UNIT_OBJECTS = {
-    "tank": new zogl.zQuad(32, 32)
+    "tank": new zogl.zQuad(TILE_SIZE, TILE_SIZE)
 }
 
 rUnit = function(type) {
@@ -59,7 +63,7 @@ rUnit = function(type) {
         var tx = new zogl.zTexture();
         tx.loadFromFile("tank.png");
 
-        var q = new zogl.zQuad(32, 32);
+        var q = new zogl.zQuad(TILE_SIZE, TILE_SIZE);
         q.attachTexture(tx);
         q.create();
         this.addObject(q);
@@ -71,6 +75,10 @@ rUnit = function(type) {
     this.health = 100;
     this.attribs = UNIT_ATTRIBUTES[type];
     this.ai = new rPathfinder();
+    this.speed = {
+        'dx': 0,
+        'dy': 0
+    };
 }
 rUnit.prototype = new zogl.zSprite();
 rUnit.prototype.constructor = rUnit;
@@ -91,18 +99,41 @@ rUnit.prototype.update = function() {
     }
 
     if (this.orders.length) {
+        var target = {
+                'x': this.orders[0].position.x + TILE_SIZE / 2,
+                'y': this.orders[0].position.y + TILE_SIZE / 2
+            };
+
+        var current = {
+            'x': this.getX() + this.rect.w / 2,
+            'y': this.getY() + this.rect.h / 2
+        };
+
+        var ready = (in_range(current.x, target.x - Math.max(5, this.speed.dx),
+                              target.x + Math.max(5, this.speed.dx)) &&
+                     in_range(current.y, target.y - Math.max(5, this.speed.dy),
+                              target.y + Math.max(5, this.speed.dx)));
+
+        var tx = this.orders[0].position.x - this.getX(),
+            ty = this.orders[0].position.y - this.getY();
+        var dist = Math.sqrt(tx*tx + ty*ty);
+
+        this.speed = {
+            'dx': (tx / dist) * this.attribs.speed,
+            'dy': (ty / dist) * this.attribs.speed
+        };
+
         if (this.orders[0].type == "attack" &&
             this.orders[0].target.health == 0) {
             this.orders.splice(0, 1);
 
         } else if (this.orders[0].type == "move") {
-            if (!this.collides(this.orders[0].position.x,
-                               this.orders[0].position.y)) {
-                this.adjust(
-                    this.orders[0].position.x > this.getX() ? this.attribs.speed : -this.attribs.speed,
-                    this.orders[0].position.y > this.getY() ? this.attribs.speed : -this.attribs.speed
-                );
+
+            if (!ready) {
+                this.adjust(this.speed.dx, this.speed.dy);
             } else {
+                this.move(this.orders[0].position.x,
+                          this.orders[0].position.y);
                 this.orders.splice(0, 1);
             }
 
@@ -115,17 +146,13 @@ rUnit.prototype.update = function() {
             var dist = Math.pow(enemy.getX() - this.getX(), 2) +
                        Math.pow(enemy.getY() - this.getY(), 2);
 
-            if (dist <= Math.pow(this.attribs.range * 32, 2) &&
+            if (dist <= Math.pow(this.attribs.range * TILE_SIZE, 2) &&
                 dist >= Math.pow(this.attribs.minrange || 0, 2)) {
                 enemy.doDamage(this);
 
             // Otherwise, move towards the target.
             } else {
-                var order = this.orders[0];
-                this.adjust(
-                    this.orders[0].position.x > this.getX() ? this.attribs.speed : -this.attribs.speed,
-                    this.orders[0].position.y > this.getY() ? this.attribs.speed : -this.attribs.speed
-                );
+                this.adjust(this.speed.dx, this.speed.dy);
             }
         }
     }
