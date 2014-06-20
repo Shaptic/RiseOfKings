@@ -1,19 +1,3 @@
-function in_range(val, min, max) {
-    return val >= min && val <= max;
-}
-
-function getAlignedPos(pos) {
-    off = {
-        x: pos.x % TILE_SIZE,
-        y: pos.y % TILE_SIZE
-    };
-
-    return {
-        'x': pos.x + (off.x < TILE_SIZE ? -off.x : off.x),
-        'y': pos.y + (off.y < TILE_SIZE ? -off.y : off.y)
-    };
-}
-
 /*
  * Sample order format:
  *  {

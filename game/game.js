@@ -5,35 +5,13 @@
  * [ ] Make pathfinding occur only once for groups.
  * [ ] Fix the freeze that occurs when attacking (pathfinding related?).
  * [ ] Map panning.
- * [ ] Utility file.
+ * [*] Utility file.
  * [ ] Refactor into armies / players.
  * [ ] Automatic attacking when w/in range.
  * [ ] Minimum attack range.
  * [ ] Frame-rate independent move speed.
+ * [ ] Single unit selection w/o dragging.
  */
-
-function createGrid(units, position) {
-    var w = (units.length <= 4) ? units.length : Math.ceil(Math.sqrt(units.length));
-    var h = units.length / w;
-
-    var result = [];
-    var x = 0, y = 0;
-
-    for (var i = 0; i < units.length; i++) {
-        result.push({
-            'x': x + position.x,
-            'y': y + position.y
-        });
-
-        x += TILE_SIZE;
-        if (x >= w * TILE_SIZE) {
-            x = 0;
-            y += TILE_SIZE;
-        }
-    };
-
-    return result;
-}
 
 function init() {
     var w = new zogl.zWindow(WINDOW_SIZE.w, WINDOW_SIZE.h);
@@ -71,10 +49,7 @@ function init() {
     for (var i = 0; i < WINDOW_SIZE.w; i += TILE_SIZE) {
         map[i] = {};
         for (var j = 0; j < WINDOW_SIZE.h; j += TILE_SIZE) {
-            map[i][j] = {
-                'x': i,
-                'y': j
-            };
+            map[i][j] = new vector(i, j);
         }
     }
 
@@ -106,10 +81,7 @@ function init() {
 
     var UNIT_COUNT = 10;
     for (var i = 0; i < UNIT_COUNT; ++i) {
-        var pos = getAlignedPos({
-            'x': TILE_SIZE * 2 * i,
-            'y': 100
-        });
+        var pos = getAlignedPos(new vector(TILE_SIZE * 2 * i, 100));
 
         units.push(scene.addObject(rUnit, [i > UNIT_COUNT / 2 ? "tank" : "archer"]));
         units[i].move(pos.x, pos.y);
@@ -130,14 +102,8 @@ function init() {
 
     var selecting = false;
     var selectionRect = {
-        'start': {
-            'x': 0,
-            'y': 0
-        },
-        'end': {
-            'x': 0,
-            'y': 0
-        }
+        'start': new vector(0, 0),
+        'end': new vector(0, 0)
     };
 
     glGlobals.canvas.addEventListener("mousedown", function(evt) {

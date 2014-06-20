@@ -1,9 +1,6 @@
 map = {};
 
-function vector(x, y) {
-    this.x = x || 0;
-    this.y = y || 0;
-}
+
 
 function rMap() {
     this.units = [];
@@ -11,10 +8,7 @@ function rMap() {
 }
 
 rMap.prototype.getTileAt = function(x, y) {
-    var pos = getAlignedPos({
-        'x': x,
-        'y': y
-    });
+    var pos = getAlignedPos(new vector(x, y));
 
     if (pos.x < 0 || pos.x >= WINDOW_SIZE.w ||
         pos.y < 0 || pos.y >= WINDOW_SIZE.h) return null;
@@ -23,16 +17,11 @@ rMap.prototype.getTileAt = function(x, y) {
 };
 
 rMap.prototype.isCollideableAt = function(x, y) {
-    var pos = getAlignedPos({
-        'x': x,
-        'y': y
-    });
+    var pos = getAlignedPos(new vector(x, y));
 
     for (var i in this.units) {
-        var unit_pos = getAlignedPos({
-            'x': this.units[i].getX(),
-            'y': this.units[i].getY()
-        });
+        var unit_pos = getAlignedPos(new vector(this.units[i].getX(),
+                                                this.units[i].getY()));
 
         if (parseInt(unit_pos.x) == parseInt(x) &&
             parseInt(unit_pos.y) == parseInt(y)) {
