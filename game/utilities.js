@@ -12,10 +12,7 @@ function createGrid(units, position) {
     var x = 0, y = 0;
 
     for (var i = 0; i < units.length; i++) {
-        result.push({
-            'x': x + position.x,
-            'y': y + position.y
-        });
+        result.push(new vector(x + position.x, y + position.y));
 
         x += TILE_SIZE;
         if (x >= w * TILE_SIZE) {

@@ -28,41 +28,44 @@ var UNIT_OBJECTS = {
     "tank": new zogl.zQuad(TILE_SIZE, TILE_SIZE)
 }
 
-rUnit = function(type) {
-    if (!UNIT_OBJECTS.tank.loaded) {
-        var tx = new zogl.zTexture();
-        tx.loadFromFile("tank.png");
-        UNIT_OBJECTS.tank.attachTexture(tx);
-        UNIT_OBJECTS.tank.create();
-        UNIT_OBJECTS.tank.loaded = true;
-    }
-
+function rUnit(scene, type) {
     zogl.zSprite.call(this);
 
-    if (type instanceof Array) {
-        type = type[0];
+    // Handle any args passed in as an Array (via zogl.zScene).
+    if (scene instanceof Array) {
+        type  = scene[1];
+        scene = scene[0];
     }
 
-    if (type == "tank" || type == "archer") {
-        var tx = new zogl.zTexture();
-        tx.loadFromFile("tank.png");
+    // Create our sprites.
+    var tx = new zogl.zTexture();
+    tx.loadFromFile(type + ".png");
 
-        var q = new zogl.zQuad(TILE_SIZE, TILE_SIZE);
+    var that = this;
+    var q = new zogl.zQuad(TILE_SIZE, TILE_SIZE);
+    tx.setOnload(function() {
         q.attachTexture(tx);
         q.create();
-        this.addObject(q);
-    } else {
-        throw("bad type: " + type);
-    }
+        that.addObject(q);
+    });
+
+    var hBar = scene.addObject();
+    var healthBar = new zogl.zQuad(TILE_SIZE, 2);
+    healthBar.setColor("#00FF00");
+    healthBar.create();
+    hBar.addObject(healthBar);
+
+    this.healthBar = hBar;
+    this.healthBar.move(this.getX(), this.getY() - 3);
+    this.healthBar.disable();
+
+    delete healthBar;
 
     this.orders = [];
     this.health = 100;
     this.attribs = UNIT_ATTRIBUTES[type];
-    this.ai = new rPathfinder();
-    this.speed = {
-        'dx': 0,
-        'dy': 0
-    };
+    this.speed = new vector();
+    this.group = null;
 }
 rUnit.prototype = new zogl.zSprite();
 rUnit.prototype.constructor = rUnit;
@@ -83,29 +86,27 @@ rUnit.prototype.update = function() {
     }
 
     if (this.orders.length) {
-        var target = {
-                'x': this.orders[0].position.x + TILE_SIZE / 2,
-                'y': this.orders[0].position.y + TILE_SIZE / 2
-            };
+        var target = new vector(
+            this.orders[0].position.x + TILE_SIZE / 2,
+            this.orders[0].position.y + TILE_SIZE / 2
+        );
 
-        var current = {
-            'x': this.getX() + this.rect.w / 2,
-            'y': this.getY() + this.rect.h / 2
-        };
+        var current = new vector(
+            this.getX() + this.rect.w / 2,
+            this.getY() + this.rect.h / 2
+        );
 
-        var ready = (in_range(current.x, target.x - Math.max(5, this.speed.dx),
-                              target.x + Math.max(5, this.speed.dx)) &&
-                     in_range(current.y, target.y - Math.max(5, this.speed.dy),
-                              target.y + Math.max(5, this.speed.dx)));
+        var ready = (in_range(current.x, target.x - Math.max(5, this.speed.x),
+                              target.x + Math.max(5, this.speed.x)) &&
+                     in_range(current.y, target.y - Math.max(5, this.speed.y),
+                              target.y + Math.max(5, this.speed.y)));
 
         var tx = this.orders[0].position.x - this.getX(),
             ty = this.orders[0].position.y - this.getY();
         var dist = Math.sqrt(tx*tx + ty*ty);
 
-        this.speed = {
-            'dx': (tx / dist) * this.attribs.speed,
-            'dy': (ty / dist) * this.attribs.speed
-        };
+        this.speed.x = (tx / dist) * this.attribs.speed;
+        this.speed.y = (ty / dist) * this.attribs.speed;
 
         if (this.orders[0].type == "attack" &&
             this.orders[0].target.health == 0) {
@@ -114,7 +115,7 @@ rUnit.prototype.update = function() {
         } else if (this.orders[0].type == "move") {
 
             if (!ready) {
-                this.adjust(this.speed.dx, this.speed.dy);
+                this.adjust(this.speed.x, this.speed.y);
             } else {
                 this.move(this.orders[0].position.x,
                           this.orders[0].position.y);
@@ -136,7 +137,7 @@ rUnit.prototype.update = function() {
 
             // Otherwise, move towards the target.
             } else {
-                this.adjust(this.speed.dx, this.speed.dy);
+                this.adjust(this.speed.x, this.speed.y);
             }
         }
     }
@@ -155,11 +156,23 @@ rUnit.prototype.doDamage = function(obj) {
     }
 
     this.addOrder({
-        "position": {
-            'x': obj.getX(),
-            'y': obj.getY()
-        },
+        "position": new vector(obj.getX(), obj.getY()),
         "target": obj,
         "type": "attack"
     });
+};
+
+rUnit.prototype.draw = function(ready) {
+    this.healthBar.move(this.getX(), this.getY() - 3);
+
+    zogl.zSprite.prototype.draw.call(this, ready);
+    this.healthBar.draw(ready);
+};
+
+rUnit.prototype.showHealth = function() {
+    this.healthBar.enable();
+};
+
+rUnit.prototype.hideHealth = function() {
+    this.healthBar.disable();
 };

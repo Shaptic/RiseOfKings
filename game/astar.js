@@ -1,37 +1,3 @@
-map = {};
-
-
-
-function rMap() {
-    this.units = [];
-    this.tiles = [];
-}
-
-rMap.prototype.getTileAt = function(x, y) {
-    var pos = getAlignedPos(new vector(x, y));
-
-    if (pos.x < 0 || pos.x >= WINDOW_SIZE.w ||
-        pos.y < 0 || pos.y >= WINDOW_SIZE.h) return null;
-
-    return map[pos.x][pos.y];
-};
-
-rMap.prototype.isCollideableAt = function(x, y) {
-    var pos = getAlignedPos(new vector(x, y));
-
-    for (var i in this.units) {
-        var unit_pos = getAlignedPos(new vector(this.units[i].getX(),
-                                                this.units[i].getY()));
-
-        if (parseInt(unit_pos.x) == parseInt(x) &&
-            parseInt(unit_pos.y) == parseInt(y)) {
-            return pos;
-        }
-    }
-
-    return null;
-};
-
 var Node = function() {
     this.parent = null;
     this.tile = null;
