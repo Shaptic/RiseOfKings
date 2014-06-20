@@ -4,6 +4,12 @@ var WINDOW_SIZE = {
     'h': 600
 };
 
+var COLORS = {
+    "red":      '(1.0, 0.0, 0.0, 0.0)',
+    "blue":     '(0.0, 0.0, 1.0, 0.0)',
+    "green":    '(0.0, 1.0, 0.0, 0.0)'
+};
+
 function createGrid(units, position) {
     var w = (units.length <= 4) ? units.length : Math.ceil(Math.sqrt(units.length));
     var h = units.length / w;
@@ -14,10 +20,10 @@ function createGrid(units, position) {
     for (var i = 0; i < units.length; i++) {
         result.push(new vector(x + position.x, y + position.y));
 
-        x += TILE_SIZE;
-        if (x >= w * TILE_SIZE) {
+        x += units[i].rect.w;
+        if (x >= w * units[i].rect.w) {
             x = 0;
-            y += TILE_SIZE;
+            y += units[i].rect.h;
         }
     };
 

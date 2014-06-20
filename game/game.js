@@ -20,7 +20,7 @@ function init() {
     var scene   = new zogl.zScene();
     var gameMap = new rMap(scene);
     var player  = new rPlayer(gameMap);
-    var enemy   = new rPlayer(gameMap, 'vec4(1.0, 0, 0, 1.0)');
+    var enemy   = new rPlayer(gameMap, "red");
 
     gameMap.create();
 
@@ -75,11 +75,33 @@ function init() {
 
         scene.draw();
 
+        for (var i in player.units) {
+            player.units[i].drawHealthBar();
+        }
+
+        for (var i in enemy.units) {
+            enemy.units[i].drawHealthBar();
+        }
+
         if (player.selectionBox !== null) {
             gl.enable(gl.BLEND);
             gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
             selectionQuad.draw();
             gl.disable(gl.BLEND);
+        }
+
+        for (var i in enemy.groups) {
+            for (var j in enemy.groups[i].units) {
+                for (var k in enemy.groups[i].units[j].orders) {
+                    var order = enemy.groups[i].units[j].orders[k];
+
+                    var z = new zogl.zQuad();
+                    z.resize(5, 5);
+                    z.move(order.position.x, order.position.y);
+                    z.create();
+                    z.draw();
+                }
+            }
         }
 
         requestAnimationFrame(game);

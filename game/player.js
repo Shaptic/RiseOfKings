@@ -33,8 +33,40 @@ rGroup.prototype.giveOrders = function(order) {
     this.astar.findPath(new vector(this.units[0].getX(), this.units[0].getY()),
                         order.position);
 
+    var positions = [];
+
+    // For attack orders, we want to set the final order such that the units can
+    // surround the target.
+    if (order.type == "attack" && this.units.length > 1) {
+        positions = createGrid(this.units, order.position);
+
+        var w = Math.abs(positions[0].x - positions[positions.length - 1].x),
+            h = Math.abs(positions[0].y - positions[positions.length - 1].y);
+
+        for (var i in positions) {
+
+            // Pop the order that is on the target to the
+            // next position in the formation.
+            if (positions[i].x == order.position.x &&
+                positions[i].y == order.position.y) {
+
+                log('adjusting target position');
+
+                positions[positions.length - 1].x = positions[0].x;
+                positions[positions.length - 1].y += this.units[
+                    (i == 0) ? positions.length - 1 : i - 1
+                ].rect.h;
+            }
+
+            positions[i].x -= Math.floor(w / 2);
+            positions[i].y -= Math.floor(h / 2);
+        }
+    }
+
     // Positions for formation.
-    var positions = createGrid(this.units, order.position);
+    else {
+        positions = createGrid(this.units, order.position);
+    }
 
     // We add movement orders for the entire path, and then add the order
     // we were given, with adjusted position, as the last order.
@@ -71,26 +103,30 @@ rGroup.prototype.assignUnits = function(units) {
 };
 
 function rPlayer(map, color) {
-    var color = color || 'vec4(0.0, 0.0, 1.0, 1.0)';
-
     this.groups = [];
     this.units  = [];
     this.map    = map;
+    this.color = color || "blue";
 
     this.selection = [];
     this.selectionBox = null;   // not selecting
 
-    var str = COLOR_SHADER.replace('%(COLOR)', color);
+    var str = COLOR_SHADER.replace('%(COLOR)', 'vec4' + COLORS[this.color]);
     this.shader = new zogl.zShader();
     this.shader.loadFromString(zogl.SHADERS.defaultvs, str);
 
-    log('errorstr: ', this.shader.errorstr);
+    if (this.shader.errorstr) {
+        log('errorstr: ', this.shader.errorstr);
+        throw('nope');
+    }
 }
 
 rPlayer.prototype.setUnits = function(units) {
     this.units = units;
     for (var i in this.units) {
+        this.units[i].flags.blend = true;
         this.units[i].scene = this.map.scene;
+        this.units[i].color = this.color;
         this.units[i].addPass(this.shader);
         this.map.units.push(this.units[i]);
     }
@@ -213,5 +249,11 @@ rPlayer.prototype.update = function() {
 
     for (var i in this.selection) {
         this.selection[i].showHealth();
+    }
+
+    for (var i = this.groups.length - 1; i >= 0; --i) {
+        if (this.groups[i].length == 0) {
+            this.groups.splice(i, 1);
+        }
     }
 };

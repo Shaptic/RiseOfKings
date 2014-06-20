@@ -42,24 +42,19 @@ function rUnit(scene, type) {
     tx.loadFromFile(type + ".png");
 
     var that = this;
-    var q = new zogl.zQuad(TILE_SIZE, TILE_SIZE);
+    var q = new zogl.zQuad();
     tx.setOnload(function() {
+        q.resize(tx.size.w, tx.size.h);
         q.attachTexture(tx);
         q.create();
         that.addObject(q);
     });
 
-    var hBar = scene.addObject();
-    var healthBar = new zogl.zQuad(TILE_SIZE, 2);
-    healthBar.setColor("#00FF00");
-    healthBar.create();
-    hBar.addObject(healthBar);
-
-    this.healthBar = hBar;
+    this.healthBar = new zogl.zQuad(TILE_SIZE, 2);
+    this.healthBar.setColor("#00FF00");
+    this.healthBar.create();
     this.healthBar.move(this.getX(), this.getY() - 3);
-    this.healthBar.disable();
-
-    delete healthBar;
+    this.healthBar.enabled = false;
 
     this.orders = [];
     this.health = 100;
@@ -86,9 +81,11 @@ rUnit.prototype.update = function() {
     }
 
     if (this.orders.length) {
+        var order = this.orders[0];
+
         var target = new vector(
-            this.orders[0].position.x + TILE_SIZE / 2,
-            this.orders[0].position.y + TILE_SIZE / 2
+            order.position.x + TILE_SIZE / 2,
+            order.position.y + TILE_SIZE / 2
         );
 
         var current = new vector(
@@ -101,29 +98,29 @@ rUnit.prototype.update = function() {
                      in_range(current.y, target.y - Math.max(5, this.speed.y),
                               target.y + Math.max(5, this.speed.y)));
 
-        var tx = this.orders[0].position.x - this.getX(),
-            ty = this.orders[0].position.y - this.getY();
-        var dist = Math.sqrt(tx*tx + ty*ty);
+        var tx = order.position.x - this.getX(),
+            ty = order.position.y - this.getY();
+        var mag = Math.sqrt(tx*tx + ty*ty);
 
-        this.speed.x = (tx / dist) * this.attribs.speed;
-        this.speed.y = (ty / dist) * this.attribs.speed;
+        this.speed.x = (tx / mag) * this.attribs.speed;
+        this.speed.y = (ty / mag) * this.attribs.speed;
 
-        if (this.orders[0].type == "attack" &&
-            this.orders[0].target.health == 0) {
+        if (order.type == "attack" &&
+            order.target.health == 0) {
             this.orders.splice(0, 1);
 
-        } else if (this.orders[0].type == "move") {
+        } else if (order.type == "move") {
 
             if (!ready) {
                 this.adjust(this.speed.x, this.speed.y);
             } else {
-                this.move(this.orders[0].position.x,
-                          this.orders[0].position.y);
+                this.move(order.position.x,
+                          order.position.y);
                 this.orders.splice(0, 1);
             }
 
-        } else if (this.orders[0].type == "attack") {
-            var enemy = this.orders[0].target;
+        } else if (order.type == "attack") {
+            var enemy = order.target;
 
             // If w/in range, do damage.
             // Find center points.
@@ -146,6 +143,13 @@ rUnit.prototype.update = function() {
 rUnit.prototype.doDamage = function(obj) {
     this.health -= obj.attribs.damage;
 
+    // Update the health bar.
+    this.healthBar = new zogl.zQuad(this.healthBar.size.w * (this.health / 100), 2);
+    this.healthBar.setColor("#00FF00");
+    this.healthBar.create();
+    this.healthBar.move(this.getX(), this.getY() - 3);
+    this.healthBar.enabled = false;
+
     // if we are not currently attacking this unit, make it an order
     // to do so soon.
     for (var i in this.orders) {
@@ -164,15 +168,19 @@ rUnit.prototype.doDamage = function(obj) {
 
 rUnit.prototype.draw = function(ready) {
     this.healthBar.move(this.getX(), this.getY() - 3);
-
     zogl.zSprite.prototype.draw.call(this, ready);
-    this.healthBar.draw(ready);
+};
+
+rUnit.prototype.drawHealthBar = function() {
+    if (this.healthBar.enabled) {
+        //this.healthBar.draw();
+    }
 };
 
 rUnit.prototype.showHealth = function() {
-    this.healthBar.enable();
+    this.healthBar.enabled = true;
 };
 
 rUnit.prototype.hideHealth = function() {
-    this.healthBar.disable();
+    this.healthBar.enabled = false;
 };

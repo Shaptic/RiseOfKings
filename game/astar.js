@@ -21,14 +21,6 @@ rPathfinder.prototype.findPath = function(start, end) {
     node.tile = start;
     openList.push(node);
 
-    if (this.map.isCollideableAt(end)) {
-        end.x += TILE_SIZE;
-        if (end.x >= TILE_SIZE) end.x -= 2 * TILE_SIZE;
-
-        end.y += TILE_SIZE;
-        if (end.y >= TILE_SIZE) end.y -= 2 * TILE_SIZE;
-    }
-
     while (openList.length) {
         var idx = 0;
         var min_cost = openList[idx].cost;
