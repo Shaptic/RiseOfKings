@@ -60,7 +60,8 @@ rPathfinder.prototype.findPath = function(start, end) {
 
                 var closed = false;
                 for (var i in closedList) {
-                    if (tile === closedList[i].tile) {
+                    if (tile.x == closedList[i].tile.x &&
+                        tile.y == closedList[i].tile.y) {
                         closed = true;
                     }
                 }
@@ -72,7 +73,8 @@ rPathfinder.prototype.findPath = function(start, end) {
 
                 var open = false;
                 for (var i in openList) {
-                    if (openList[i].tile == tile) {
+                    if (openList[i].tile.x == tile.x &&
+                        openList[i].tile.y == tile.y) {
                         if (openList[i].cost < h + openList[i].parent.move_count + 1) {
                             openList[i].parent = currentNode;
                             openList[i].move_count = openList[i].parent.move_count + 1;

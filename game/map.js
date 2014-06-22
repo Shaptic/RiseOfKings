@@ -22,18 +22,18 @@ rMap.prototype.create = function() {
         that.goodTerrain.push(grass);
     });
 
-    for (var x = 0; x < grass.rect.w; x += TILE_SIZE) {
+    for (var x = 0; x < WINDOW_SIZE.w; x += TILE_SIZE) {
         this.grid[x] = {};
 
-        for (var y = 0; y < grass.rect.h; y += TILE_SIZE) {
-            this.grid[x][y] = grass;
+        for (var y = 0; y < WINDOW_SIZE.h; y += TILE_SIZE) {
+            this.grid[x][y] = new vector(x, y);
         }
     }
 };
 
 rMap.prototype.getTileAt = function(x, y) {
     var pos = getAlignedPos(new vector(x, y));
-    log(x, y, pos);
+    console.log(x, y, pos);
 
     if (pos.x in this.grid) {
         if (pos.y in this.grid[pos.x]) {
@@ -59,8 +59,6 @@ rMap.prototype.isCollideableAt = function(x, y) {
             parseInt(this.units[i].speed.y) != 0) {
             continue;
         }*/
-
-        console.log(unit_pos, ' vs ', pos.x, pos.y);
 
         if (parseInt(unit_pos.x) == parseInt(pos.x) &&
             parseInt(unit_pos.y) == parseInt(pos.y)) {
