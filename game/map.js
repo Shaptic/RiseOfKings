@@ -33,7 +33,6 @@ rMap.prototype.create = function() {
 
 rMap.prototype.getTileAt = function(x, y) {
     var pos = getAlignedPos(new vector(x, y));
-    console.log(x, y, pos);
 
     if (pos.x in this.grid) {
         if (pos.y in this.grid[pos.x]) {
@@ -62,6 +61,7 @@ rMap.prototype.isCollideableAt = function(x, y) {
 
         if (parseInt(unit_pos.x) == parseInt(pos.x) &&
             parseInt(unit_pos.y) == parseInt(pos.y)) {
+            console.log('taken');
             return pos;
         }
     }

@@ -29,6 +29,8 @@ rGroup.prototype.giveOrders = function(order) {
         return;
     }
 
+    log('finding path.');
+
     // Perform pathfinding a single time on the group.
     this.astar.findPath(new vector(this.units[0].getX(), this.units[0].getY()),
                         order.position);
@@ -170,17 +172,18 @@ rPlayer.prototype.handleEvent = function(evt) {
         // We have a selection? Adjust it.
         if (this.selectionBox !== null) {
 
-            var end = position;
+            this.selectionBox.w = position.x;
+            this.selectionBox.h = position.y;
 
-            var left  = Math.min(position.x, this.selectionBox.x);
-            var top   = Math.min(position.y, this.selectionBox.y);
-            var right = Math.max(position.x, this.selectionBox.x);
-            var bottom= Math.max(position.y, this.selectionBox.y);
+            var left  = Math.min(this.selectionBox.x, this.selectionBox.w);
+            var top   = Math.min(this.selectionBox.y, this.selectionBox.h);
+            var right = Math.max(this.selectionBox.x, this.selectionBox.w);
+            var bottom= Math.max(this.selectionBox.y, this.selectionBox.h);
 
-            this.selectionBox = new zogl.rect(left, top, right - left, bottom - top);
+            this.selectionQuad = new zogl.rect(left, top, right - left, bottom - top);
 
             this.selection = [];
-            var tmp = this.map.query(this.selectionBox, rUnit);
+            var tmp = this.map.query(this.selectionQuad, rUnit);
             for (var i in tmp) {
                 if (tmp[i].color == this.color) {
                     this.selection.push(tmp[i]);

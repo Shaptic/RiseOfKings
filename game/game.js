@@ -2,15 +2,17 @@
  * TODO:
  *
  * [*] Smoother movement.
- * [ ] Make pathfinding occur only once for groups.
- * [ ] Fix the freeze that occurs when attacking (pathfinding related?).
+ * [*] Make pathfinding occur only once for groups.
+ * [*] Fix the freeze that occurs when attacking (pathfinding related?).
  * [ ] Map panning.
  * [*] Utility file.
- * [ ] Refactor into armies / players.
+ * [*] Refactor into armies / players.
  * [ ] Automatic attacking when w/in range.
  * [ ] Minimum attack range.
  * [ ] Frame-rate independent move speed.
- * [ ] Single unit selection w/o dragging.
+ * [*] Single unit selection w/o dragging.
+ * [ ] Get into formation after attacking.
+ * [*] Fix non-standard selection
  */
 
 function init() {
@@ -46,29 +48,24 @@ function init() {
 
     glGlobals.canvas.addEventListener("mousedown", playerEventHandler, false);
     glGlobals.canvas.addEventListener("mouseup",   playerEventHandler, false);
-    glGlobals.canvas.addEventListener("mousemove", playerEventHandler, false);
+    glGlobals.canvas.addEventListener("mousemove", function(evt) {
+        playerEventHandler(evt);
+
+        if (player.selectionBox !== null) {
+            selectionQuad = new zogl.zQuad(player.selectionQuad.w,
+                                           player.selectionQuad.h);
+            selectionQuad.setColor(new zogl.color4([1, 1, 1, 0.5]));
+            selectionQuad.create();
+            selectionQuad.move(player.selectionQuad.x, player.selectionQuad.y);
+        }
+
+    }, false);
     glGlobals.canvas.addEventListener("mouseout",  playerEventHandler, false);
 
     var selectionQuad = new zogl.zQuad();
 
     var game = function() {
         w.clear('#000000');
-
-        if (player.selectionBox !== null) {
-            if (selectionQuad.size.w !== player.selectionBox.w ||
-                selectionQuad.size.h !== player.selectionBox.h) {
-                selectionQuad = new zogl.zQuad(player.selectionBox.w,
-                                               player.selectionBox.h);
-                selectionQuad.setColor(new zogl.color4([1.0, 1.0, 1.0, 0.5]));
-                selectionQuad.create();
-                selectionQuad.move(player.selectionBox.x, player.selectionBox.y);
-            }
-
-            if (selectionQuad.x !== player.selectionBox.x ||
-                selectionQuad.y !== player.selectionBox.y) {
-                selectionQuad.move(player.selectionBox.x, player.selectionBox.y);
-            }
-        }
 
         player.update();
         enemy.update();
@@ -102,6 +99,10 @@ function init() {
                     z.draw();
                 }
             }
+        }
+
+        for (var i in player.groups) {
+            player.groups[i].astar.showPath();
         }
 
         requestAnimationFrame(game);
