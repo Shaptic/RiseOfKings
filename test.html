@@ -1,0 +1,253 @@
+<html>
+<head>
+    <style>
+    canvas {
+        border: 1px solid black;
+    }
+    </style>
+</head>
+
+<body>
+    <p>Hello</p>
+    <canvas id="canvas"></canvas>
+
+    <script>
+    log = console.log;
+    function getMousePosition(evt) {
+        var rect = c.getBoundingClientRect();
+        return {
+            x:  evt.clientX - rect.left,
+            y:  evt.clientY - rect.top,
+        }
+    };
+
+    function getAlignedPos(pos) {
+        off = {'x': pos.x % TILE_SIZE,
+               'y': pos.y % TILE_SIZE};
+
+        return {
+            'x': pos.x + (off.x < TILE_SIZE ? -off.x : off.x),
+            'y': pos.y + (off.y < TILE_SIZE ? -off.y : off.y)
+        };
+    }
+
+    var Node = function() {
+        this.parent = null;     // Node
+        this.tile = null;       // vector
+        this.cost = 0;          // heuristic + move_count
+        this.move_count = 0;    // int
+        this.heuristic = 0;     // double [distance]
+    };
+
+    var c = document.getElementById("canvas");
+    c.width = c.height = 400;
+    var ctx = c.getContext("2d");
+    var TILE_SIZE = 64;
+
+    function drawRect(x, y, w, h, color, fill) {
+        w       = w || TILE_SIZE;
+        h       = h || TILE_SIZE;
+        color   = color || "black";
+        fill    = fill || false;
+
+        ctx.beginPath();
+        ctx.rect(x, y, w, h);
+        if (fill) {
+            ctx.fillStyle = color;
+            ctx.fill();
+        } else {
+            ctx.strokeStyle = color;
+            ctx.stroke();
+        }
+    }
+
+    tiles = {};
+    for (var x = 0; x < c.width; x += TILE_SIZE) {
+        tiles[x] = {};
+        for (var y = 0; y < c.height; y += TILE_SIZE) {
+            tiles[x][y] = { 'x': x, 'y': y, 'taken': false };
+        }
+    }
+
+    function getTile(x, y) {
+        if (!(x in tiles))      return null;
+        if (!(y in tiles[x]))   return null;
+
+        return tiles[x][y];
+    }
+
+    function render() {
+        for (var x in tiles) {
+            for (var y in tiles[x]) {
+                var t = tiles[x][y];
+                drawRect(t.x, t.y, 0, 0, 0, t.taken);
+            }
+        }
+
+        drawRect(START.x, START.y, 0, 0, '#FFFF00', true);
+        drawRect(END.x, END.y, 0, 0, '#FF00FF', true);
+    }
+
+    function getNeighbors(node) {
+        var n = [];
+
+        n.push(getTile(node.x - TILE_SIZE, node.y - TILE_SIZE));
+        n.push(getTile(node.x, node.y - TILE_SIZE));
+        n.push(getTile(node.x + TILE_SIZE, node.y - TILE_SIZE));
+
+        n.push(getTile(node.x - TILE_SIZE, node.y));
+        n.push(getTile(node.x + TILE_SIZE, node.y));
+
+        n.push(getTile(node.x - TILE_SIZE, node.y + TILE_SIZE));
+        n.push(getTile(node.x, node.y + TILE_SIZE));
+        n.push(getTile(node.x + TILE_SIZE, node.y + TILE_SIZE));
+
+        return n.filter(function(e) { return e !== null; });
+    }
+
+    function findPath(start, end, openList, closedList) {
+        function cmp(a, b) {
+            return parseInt(a.x) == parseInt(b.x) &&
+                   parseInt(a.y) == parseInt(b.y);
+        }
+
+        var path = [];
+        var openList = openList || [];
+        var closedList = closedList || [];
+
+        var node = new Node();
+        node.tile = start;
+        openList.push(node);
+
+        while (openList.length) {
+            var idx = 0;
+            var min = openList[0].cost;
+            for (var i in openList) {
+                drawRect(openList[i].tile.x, openList[i].tile.y, 0, 0, '#FF0000');
+                ctx.font = 'monospace';
+                ctx.fillStyle = 'black';
+                ctx.fillText(openList[i].cost.toString(), openList[i].x, openList[i].y);
+
+                if (openList[i].cost < min) {
+                    min = openList[i].cost;
+                    idx = i;
+                    break;
+                }
+            }
+
+            currentNode = openList[idx];
+            closedList.push(currentNode);
+
+            drawRect(currentNode.tile.x, currentNode.tile.y,
+                     0, 0, '#AAAAAA', true);
+
+            openList.splice(idx, 1);
+
+            if (cmp(currentNode.tile, end)) {
+                break
+            }
+
+            var neighbors = getNeighbors(currentNode.tile);
+            for (var i in neighbors) {
+                if (neighbors[i].taken) continue;
+
+                drawRect(neighbors[i].x+1, neighbors[i].y+1,
+                         TILE_SIZE-2, TILE_SIZE-2, '#FF0000', true);
+
+                // Manhattan heuristic.
+                var h = Math.abs(end.x - neighbors[i].x) / TILE_SIZE +
+                        Math.abs(end.y - neighbors[i].y) / TILE_SIZE;
+
+                // Distance from last tile.
+                var g = Math.pow(currentNode.tile.x - neighbors[i].x, 2) +
+                        Math.pow(currentNode.tile.y - neighbors[i].y, 2);
+
+                var open = false;
+                for (var j in openList) {
+                    if (cmp(openList[j].tile, neighbors[i])) {
+                        if (openList[j].move_count < g) {
+                            openList[j].parent = currentNode;
+                            openList[j].heuristic = h;
+                            openList[j].move_count = currentNode.move_count + g;
+                            openList[j].cost = h + openList[j].move_count;
+                        }
+                    }
+                }
+
+                if (!open) {
+                    var node        = new Node();
+                    node.parent     = currentNode;
+                    node.tile       = neighbors[i];
+                    node.heuristic  = h;
+                    node.move_count = node.parent.move_count + g;
+                    node.cost       = h + node.move_count;
+
+                    openList.push(node);
+                }
+            }
+        }
+
+        for (var i = closedList[closedList.length - 1];
+                 i !== null;
+                 i = i.parent) {
+            path.push(i.tile);
+        }
+
+        return {
+            'openList': openList,
+            'closedList': closedList,
+            'path': path
+        };
+    }
+
+    START = { 'x': 0,  'y': 0 };
+    END   = getAlignedPos({ 'x': 200, 'y': 200 });
+
+    var path = [];
+
+    c.oncontextmenu = function(event) {
+        event.preventDefault();
+    };
+    c.onmousedown = function(evt) {
+        // rmb
+        if (evt.button == 2) {
+
+            var al = getAlignedPos(getMousePosition(evt));
+            var t = getTile(al.x, al.y);
+
+            if (t === null) return;
+
+            t.taken = !t.taken;
+
+        // lmb
+        } else if (evt.button == 0) {
+            START = getAlignedPos(getMousePosition(evt));
+            ctx.clearRect(0, 0, 400, 400);
+            path = [];
+
+        // mmb
+        } else if (evt.button == 1) {
+            END = getAlignedPos(getMousePosition(evt));
+            ctx.clearRect(0, 0, 400, 400);
+            path = [];
+        }
+    }
+
+    function loop() {
+        render();
+        if (!path.length) {
+            var ret = findPath(START, END);
+            path = ret.path;
+        }
+
+        for (var i in path) {
+            //log(path[i]);
+            drawRect(path[i].x, path[i].y, 0, 0, '#00FF00', true);
+        }
+
+        requestAnimationFrame(loop);
+    }
+
+    requestAnimationFrame(loop);
+    </script>
+</body>
