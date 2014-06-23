@@ -32,8 +32,10 @@ rGroup.prototype.giveOrders = function(order) {
     log('finding path.');
 
     // Perform pathfinding a single time on the group.
-    this.astar.findPath(new vector(this.units[0].getX(), this.units[0].getY()),
-                        order.position);
+    if (!this.astar.findPath(new vector(this.units[0].getX(), this.units[0].getY()),
+                             order.position)) {
+        throw('no path found');
+    }
 
     var positions = [];
 

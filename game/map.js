@@ -36,6 +36,7 @@ rMap.prototype.getTileAt = function(x, y) {
 
     if (pos.x in this.grid) {
         if (pos.y in this.grid[pos.x]) {
+            console.log('grid position query:', pos);
             return pos;
         }
 
