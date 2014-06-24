@@ -12,7 +12,6 @@
     <canvas id="canvas"></canvas>
 
     <script>
-    log = console.log;
     function getMousePosition(evt) {
         var rect = c.getBoundingClientRect();
         return {
@@ -42,7 +41,7 @@
     var c = document.getElementById("canvas");
     c.width = c.height = 400;
     var ctx = c.getContext("2d");
-    var TILE_SIZE = 64;
+    var TILE_SIZE = 32;
 
     function drawRect(x, y, w, h, color, fill) {
         w       = w || TILE_SIZE;
@@ -111,6 +110,9 @@
                    parseInt(a.y) == parseInt(b.y);
         }
 
+        ctx.clearRect(0, 0, 400, 400);
+        render();
+
         var path = [];
         var openList = openList || [];
         var closedList = closedList || [];
@@ -128,7 +130,7 @@
                 ctx.fillStyle = 'black';
                 ctx.fillText(openList[i].cost.toString(), openList[i].x, openList[i].y);
 
-                if (openList[i].cost < min) {
+                if (openList[i].cost <= min) {
                     min = openList[i].cost;
                     idx = i;
                     break;
@@ -154,23 +156,42 @@
                 drawRect(neighbors[i].x+1, neighbors[i].y+1,
                          TILE_SIZE-2, TILE_SIZE-2, '#FF0000', true);
 
+                // Is this tile already in the closed (potential path) list?
+                var closed = false;
+                for (var j in closedList) {
+
+                    // We check the references because the .tile attribute
+                    // will be a direct reference to the map object so comparing
+                    // them will work.
+                    if (cmp(closedList[j].tile, neighbors[i])) {
+                        closed = true;
+                        break;
+                    }
+                }
+                if (closed) continue;
+
                 // Manhattan heuristic.
                 var h = Math.abs(end.x - neighbors[i].x) / TILE_SIZE +
                         Math.abs(end.y - neighbors[i].y) / TILE_SIZE;
 
                 // Distance from last tile.
-                var g = Math.pow(currentNode.tile.x - neighbors[i].x, 2) +
-                        Math.pow(currentNode.tile.y - neighbors[i].y, 2);
+                var g = 10;
+                if (currentNode.tile.x != neighbors[i].x &&
+                    currentNode.tile.y != neighbors[i].y) {
+                    g = 14;
+                }
 
                 var open = false;
                 for (var j in openList) {
                     if (cmp(openList[j].tile, neighbors[i])) {
-                        if (openList[j].move_count < g) {
+                        if (openList[j].move_count > currentNode.move_count + g) {
                             openList[j].parent = currentNode;
                             openList[j].heuristic = h;
                             openList[j].move_count = currentNode.move_count + g;
                             openList[j].cost = h + openList[j].move_count;
                         }
+
+                        open = true;
                     }
                 }
 
