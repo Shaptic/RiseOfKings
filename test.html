@@ -41,7 +41,7 @@
     var c = document.getElementById("canvas");
     c.width = c.height = 400;
     var ctx = c.getContext("2d");
-    var TILE_SIZE = 32;
+    var TILE_SIZE = 16;
 
     function drawRect(x, y, w, h, color, fill) {
         w       = w || TILE_SIZE;
@@ -123,17 +123,9 @@
 
         while (openList.length) {
             var idx = 0;
-            var min = openList[0].cost;
             for (var i in openList) {
-                drawRect(openList[i].tile.x, openList[i].tile.y, 0, 0, '#FF0000');
-                ctx.font = 'monospace';
-                ctx.fillStyle = 'black';
-                ctx.fillText(openList[i].cost.toString(), openList[i].x, openList[i].y);
-
-                if (openList[i].cost <= min) {
-                    min = openList[i].cost;
+                if (openList[i].cost <= openList[idx].cost) {
                     idx = i;
-                    break;
                 }
             }
 
@@ -156,38 +148,40 @@
                 drawRect(neighbors[i].x+1, neighbors[i].y+1,
                          TILE_SIZE-2, TILE_SIZE-2, '#FF0000', true);
 
+                // Manhattan heuristic.
+                var h = Math.abs(end.x - neighbors[i].x) +
+                        Math.abs(end.y - neighbors[i].y);
+
+                // Distance from last tile.
+
+                var g = 10;
+                if (currentNode.tile.x != neighbors[i].x &&
+                    currentNode.tile.y != neighbors[i].y) {
+                    g = 14;
+                }
+                g += currentNode.move_count;
+
                 // Is this tile already in the closed (potential path) list?
-                var closed = false;
+                var closed = null;
                 for (var j in closedList) {
 
                     // We check the references because the .tile attribute
                     // will be a direct reference to the map object so comparing
                     // them will work.
                     if (cmp(closedList[j].tile, neighbors[i])) {
-                        closed = true;
+                        closed = closedList[j];
                         break;
                     }
                 }
-                if (closed) continue;
-
-                // Manhattan heuristic.
-                var h = Math.abs(end.x - neighbors[i].x) / TILE_SIZE +
-                        Math.abs(end.y - neighbors[i].y) / TILE_SIZE;
-
-                // Distance from last tile.
-                var g = 10;
-                if (currentNode.tile.x != neighbors[i].x &&
-                    currentNode.tile.y != neighbors[i].y) {
-                    g = 14;
-                }
+                if (closed !== null && g >= closed.move_count) continue;
 
                 var open = false;
                 for (var j in openList) {
                     if (cmp(openList[j].tile, neighbors[i])) {
-                        if (openList[j].move_count > currentNode.move_count + g) {
+                        if (openList[j].move_count > g) {
                             openList[j].parent = currentNode;
                             openList[j].heuristic = h;
-                            openList[j].move_count = currentNode.move_count + g;
+                            openList[j].move_count = g;
                             openList[j].cost = h + openList[j].move_count;
                         }
 
@@ -200,12 +194,16 @@
                     node.parent     = currentNode;
                     node.tile       = neighbors[i];
                     node.heuristic  = h;
-                    node.move_count = node.parent.move_count + g;
+                    node.move_count = g;
                     node.cost       = h + node.move_count;
 
                     openList.push(node);
                 }
             }
+        }
+
+        if (openList.length == 0) {
+            alert('no path');
         }
 
         for (var i = closedList[closedList.length - 1];

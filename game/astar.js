@@ -27,7 +27,7 @@ rPathfinder.prototype.findPath = function(start, end) {
         var idx = 0;
         var min_cost = openList[idx].cost;
         for (var i in openList) {
-            if (min_cost > openList[i].cost) {
+            if (openList[i].cost <= min_cost) {
                 min_cost = openList[i].cost;
                 idx = i;
             }
@@ -129,10 +129,12 @@ rPathfinder.prototype.findPath = function(start, end) {
     }
 
     this.current = 0;
-    if (closedList.length == 0) {
-        log(closedList);
+    if (openList.length == 0) {
+        alert('no path');
         return false;
     }
+
+    console.log(openList, closedList);
 
     for (var node = closedList[closedList.length - 1];
              node != null;
