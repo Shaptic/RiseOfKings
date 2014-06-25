@@ -29,11 +29,10 @@ rGroup.prototype.giveOrders = function(order) {
         return;
     }
 
-    log('finding path.');
-
     // Perform pathfinding a single time on the group.
+    var exclusion = this.units.concat(order.target === undefined ? [] : [ order.target ]);
     if (!this.astar.findPath(new vector(this.units[0].getX(), this.units[0].getY()),
-                             order.position)) {
+                             order.position, exclusion)) {
         throw('no path found');
     }
 
@@ -72,10 +71,36 @@ rGroup.prototype.giveOrders = function(order) {
         positions = createGrid(this.units, order.position);
     }
 
+    // TODO?
+    // Our first order sends the groups to their center of mass before heading
+    // towards our target.
+
+
+
     // We add movement orders for the entire path, and then add the order
     // we were given, with adjusted position, as the last order.
-    for (var i = this.astar.path.length - 2; i > 0; --i) {
-        for (var j in this.units) {
+    for (var j in this.units) {
+        for (var i = this.astar.path.length - 2; i > 0; --i) {
+
+            // We stop ordering movement commands for the unit once we are
+            // within range of the target (if we have one and are attacking).
+            if (order.target) {
+                var dist = Math.pow(this.astar.path[i].x - order.target.getX(), 2) +
+                           Math.pow(this.astar.path[i].y - order.target.getY(), 2);
+                if (dist < Math.pow(this.units[j].attribs.range, 2)) {
+                    break;
+                }
+
+            // If we don't have a target, just stop once we are within a tile
+            // of our final formation position (from the `positions` array).
+            } else {
+                var dist = Math.pow(this.astar.path[i].x - positions[j].x, 2) +
+                           Math.pow(this.astar.path[i].y - positions[j].y, 2);
+                if (dist < Math.pow(TILE_SIZE, 2)) {
+                    break;
+                }
+            }
+
             this.units[j].addOrder({
                 "position": this.astar.path[i],
                 "type": "move"
@@ -91,6 +116,27 @@ rGroup.prototype.giveOrders = function(order) {
             "target": order.target
         });
     }
+
+    // Post-attack, we want to set up in formation nearby.
+    if (order.type == "attack") {
+        var w = (this.units.length <= 4) ?
+                 this.units.length :
+                 Math.ceil(Math.sqrt(this.units.length));
+        var h = this.units.length / w;
+
+        positions = createGrid(this.units, new vector(
+            order.position.x - (w / 2 * TILE_SIZE),
+            order.position.y - (h / 2 * TILE_SIZE)
+        ));
+
+        for (var i in this.units) {
+            this.units[i].addOrder({
+                "type": "move",
+                "position": new vector(positions[i].x + TILE_SIZE,
+                                       positions[i].y + TILE_SIZE)
+            });
+        }
+    }
 };
 
 rGroup.prototype.clearOrders = function() {
@@ -101,8 +147,22 @@ rGroup.prototype.clearOrders = function() {
 
 rGroup.prototype.assignUnits = function(units) {
     this.units = units;
-    for (var i in this.units) {
+
+    if (units.length == 0) {
+        this.rect  = new zogl.rect();
+        return;
+    }
+
+    this.rect  = new zogl.rect(units[0].getX(), units[0].getY(),
+                               units[0].rect.w, units[0].rect.h);
+
+    for (var i = 1; i < this.units.length; ++i) {
         this.units[i].group = this;
+
+        this.rect.x = Math.min(this.rect.x, this.units[i].getX());
+        this.rect.y = Math.min(this.rect.y, this.units[i].getY());
+        this.rect.w = Math.max(this.rect.w, this.units[i].rect.w);
+        this.rect.h = Math.max(this.rect.h, this.units[i].rect.h);
     }
 };
 
@@ -147,6 +207,7 @@ rPlayer.prototype.handleEvent = function(evt) {
         // Existing selection, cancel it.
         if (this.selectionBox !== null) {
             this.selectionBox = null;
+            this.selectionRect = null;
 
         } else {
             this.selectionBox = new zogl.rect(position.x, position.y, 1, 1);
@@ -204,16 +265,22 @@ rPlayer.prototype.handleEvent = function(evt) {
         // Stop selecting.
         if (evt.button == 0 && this.selectionBox !== null) {
             this.selectionBox = null;
+            this.selectionGroup = null;
 
         // Issue orders.
         } else if (evt.button == 2 && this.selection !== []) {
-
-            var group = new rGroup(this.map);
-            group.assignUnits(this.selection);
-            this.groups.push(group);
+            if (!this.selectionGroup) {
+                var group = new rGroup(this.map);
+                group.assignUnits(this.selection);
+                this.groups.push(group);
+                this.selectionGroup = group;
+            } else {
+                group = this.selectionGroup;
+            }
 
             // If there is anyone at that position, it's an attack order.
-            var units = this.map.query(new zogl.rect(position.x, position.y, 5, 5), rUnit);
+            var units = this.map.query(new zogl.rect(position.x, position.y,
+                                                     5, 5), rUnit);
             var is_attack = false;
 
             for (var i in units) {

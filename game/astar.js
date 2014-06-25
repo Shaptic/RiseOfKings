@@ -11,7 +11,17 @@ var rPathfinder = function(map) {
     this.map = map;
 }
 
-rPathfinder.prototype.findPath = function(start, end) {
+/**
+ * @param   start       vector  Position to start at
+ * @param   start       vector  Position to end at
+ * @param   exclude     list    List of objects to exclude (must have .getX() and .getY())
+ * @param   stop_dist   float   Distance from `end` with which to stop searching.
+ **/
+rPathfinder.prototype.findPath = function(start, end, exclude, stop_dist) {
+    log(exclude);
+    end = getAlignedPos(end);
+    stop_dist = stop_dist || 0;
+
     this.path = [];
 
     var openList = [];
@@ -21,14 +31,34 @@ rPathfinder.prototype.findPath = function(start, end) {
     node.tile = start;
     openList.push(node);
 
-    while (openList.length) {
+    var that = this;
+    function getNeighbors(node) {
+        var n = [];
 
+        n.push(that.map.getTileAt(node.x - TILE_SIZE, node.y - TILE_SIZE));
+        n.push(that.map.getTileAt(node.x, node.y - TILE_SIZE));
+        n.push(that.map.getTileAt(node.x + TILE_SIZE, node.y - TILE_SIZE));
+
+        n.push(that.map.getTileAt(node.x - TILE_SIZE, node.y));
+        n.push(that.map.getTileAt(node.x + TILE_SIZE, node.y));
+
+        n.push(that.map.getTileAt(node.x - TILE_SIZE, node.y + TILE_SIZE));
+        n.push(that.map.getTileAt(node.x, node.y + TILE_SIZE));
+        n.push(that.map.getTileAt(node.x + TILE_SIZE, node.y + TILE_SIZE));
+
+        return n.filter(function(e) { return e !== null; });
+    }
+
+    function cmp(a, b) {
+        return parseInt(a.x) == parseInt(b.x) &&
+               parseInt(a.y) == parseInt(b.y);
+    }
+
+    while (openList.length) {
         // Find the node w/ the lowest cost.
         var idx = 0;
-        var min_cost = openList[idx].cost;
         for (var i in openList) {
-            if (openList[i].cost <= min_cost) {
-                min_cost = openList[i].cost;
+            if (openList[i].cost <= openList[idx].cost) {
                 idx = i;
             }
         }
@@ -36,94 +66,93 @@ rPathfinder.prototype.findPath = function(start, end) {
         // This node is good, so we add it to the closed list.
         // (remove from open first)
         var currentNode = openList[idx];
-        for (var i = openList.length - 1; i >= 0; --i) {
-            if (currentNode === openList[i]) {
-                openList.splice(i, 1);
-                break;
-            }
-        }
         closedList.push(currentNode);
+        openList.splice(idx, 1);
 
         // Have we reached the end of our search?
-        if (currentNode.tile.x == end.x &&
-            currentNode.tile.y == end.y)
+        if ((stop_dist && (Math.pow(currentNode.tile.x - end.x, 2) +
+             Math.pow(currentNode.tile.x - end.x, 2) <= Math.pow(stop_dist, 2))) ||
+            cmp(currentNode.tile, end)) {
             break;
+        }
 
         // Let's check adjacent nodes for cost-effectiveness.
-        for (var x = -1; x <= 1; ++x) {
-            for (var y = -1; y <= 1; ++y) {
+        var neighbors = getNeighbors(currentNode.tile);
+        for (var i in neighbors) {
+            var tile = neighbors[i];
 
-                // Skip self
-                if (x == 0 && y == 0) continue;
-
-                var adjpos = new vector(
-                    currentNode.tile.x + (TILE_SIZE * x),
-                    currentNode.tile.y + (TILE_SIZE * y)
-                );
-
-                // Grab the adjacent tile vector from the map.
-                var tile = this.map.getTileAt(adjpos.x, adjpos.y);
-
-                // Nothing here? Not a valid path.
-                if (tile === null) continue;
-
-                // Would there be a collision if we came here?
-                if (this.map.isCollideableAt(adjpos.x, adjpos.y) !== null) {
-                    continue;
-                }
-
-                // Is this tile already in the closed (potential path) list?
-                var closed = false;
-                for (var i in closedList) {
-
-                    // We check the references because the .tile attribute
-                    // will be a direct reference to the map object so comparing
-                    // them will work.
-                    if (tile === closedList[i].tile || (
-                        closedList[i].tile.x == tile.x &&
-                        closedList[i].tile.y == tile.y)) {
-                        closed = true;
-                    }
-                }
-                if (closed) continue;
-
-                // Calculate distance, sorta.
-                var h = Math.abs(end.x - tile.x) / TILE_SIZE +
-                        Math.abs(end.y - tile.y) / TILE_SIZE;
-
-                // Is it in the open list? Meaning, are we revisiting the tile
-                // again for another check?
-                var open = false;
-                for (var i in openList) {
-
-                    // It is.
-                    if (openList[i].tile === tile || (
-                        openList[i].tile.x == tile.x &&
-                        openList[i].tile.y == tile.y)) {
-
-                        // Now, is it an improvement over the existing node?
-                        if (openList[i].heuristic < h) {
-                            openList[i].parent = currentNode;
-                            openList[i].move_count = openList[i].parent.move_count + 1;
-                            openList[i].heuristic = h;
-                            openList[i].cost = h + openList[i].move_count;
-                        }
-
-                        open = true;
+            // Would there be a collision if we came here?
+            var hit = this.map.isCollideableAt(tile.x, tile.y);
+            if (hit && exclude) {
+                for (var i in exclude) {
+                    if (exclude[i].getX() == hit.x &&
+                        exclude[i].getY() == hit.y) {
+                        hit = false;
                         break;
                     }
                 }
+            }
+            if (hit) continue;
 
-                if (!open) {
-                    var node        = new Node();
-                    node.parent     = currentNode;
-                    node.tile       = tile;
-                    node.heuristic  = h;
-                    node.move_count = node.parent.move_count + 1;
-                    node.cost       = h + node.move_count;
+            // Distance from last tile.
+            var g = 100;
+            if (currentNode.tile.x != tile.x ||
+                currentNode.tile.y != tile.y) {
+                g = 140;
+            }
+            g += currentNode.move_count;
 
-                    openList.push(node);
+            // Is this tile already in the closed (potential path) list?
+            var closed = null;
+            for (var i in closedList) {
+
+                // We check the references because the .tile attribute
+                // will be a direct reference to the map object so comparing
+                // them will work.
+                if (cmp(closedList[i].tile, tile)) {
+                    closed = closedList[i];
+                    break;
                 }
+            }
+
+            if (closed !== null && g >= closed.move_count) {
+                continue;
+            }
+
+            // Manhattan heuristic.
+            var h = Math.abs(end.x - tile.x) +
+                    Math.abs(end.y - tile.y);
+
+            // Is it in the open list? Meaning, are we revisiting the tile
+            // again for another check?
+            var open = false;
+            for (var i in openList) {
+
+                // It is.
+                if (cmp(openList[i].tile, tile)) {
+
+                    // Now, is it an improvement over the existing node?
+                    if (openList[i].move_count > g) {
+                        openList[i].parent = currentNode;
+                        openList[i].heuristic = h;
+                        openList[i].move_count = g;
+                        openList[i].cost = h + g;
+                    }
+
+                    open = true;
+                    break;
+                }
+            }
+
+            if (!open) {
+                var node        = new Node();
+                node.parent     = currentNode;
+                node.tile       = tile;
+                node.heuristic  = h;
+                node.move_count = g;
+                node.cost       = h + g;
+
+                openList.push(node);
             }
         }
     }
@@ -133,8 +162,6 @@ rPathfinder.prototype.findPath = function(start, end) {
         alert('no path');
         return false;
     }
-
-    console.log(openList, closedList);
 
     for (var node = closedList[closedList.length - 1];
              node != null;

@@ -39,9 +39,10 @@
     };
 
     var c = document.getElementById("canvas");
-    c.width = c.height = 400;
+    c.width = 800;
+    c.height = 600;
     var ctx = c.getContext("2d");
-    var TILE_SIZE = 16;
+    var TILE_SIZE = 32;
 
     function drawRect(x, y, w, h, color, fill) {
         w       = w || TILE_SIZE;
@@ -110,12 +111,12 @@
                    parseInt(a.y) == parseInt(b.y);
         }
 
-        ctx.clearRect(0, 0, 400, 400);
+        ctx.clearRect(0, 0, c.width, c.height);
         render();
 
         var path = [];
-        var openList = openList || [];
-        var closedList = closedList || [];
+        var openList = [];
+        var closedList = [];
 
         var node = new Node();
         node.tile = start;
@@ -138,7 +139,7 @@
             openList.splice(idx, 1);
 
             if (cmp(currentNode.tile, end)) {
-                break
+                break;
             }
 
             var neighbors = getNeighbors(currentNode.tile);
@@ -154,10 +155,10 @@
 
                 // Distance from last tile.
 
-                var g = 10;
-                if (currentNode.tile.x != neighbors[i].x &&
-                    currentNode.tile.y != neighbors[i].y) {
-                    g = 14;
+                var g = 14;
+                if (currentNode.tile.x == neighbors[i].x ||
+                    currentNode.tile.y == neighbors[i].y) {
+                    g = 10;
                 }
                 g += currentNode.move_count;
 
@@ -182,10 +183,11 @@
                             openList[j].parent = currentNode;
                             openList[j].heuristic = h;
                             openList[j].move_count = g;
-                            openList[j].cost = h + openList[j].move_count;
+                            openList[j].cost = h + g;
                         }
 
                         open = true;
+                        break;
                     }
                 }
 
@@ -195,7 +197,7 @@
                     node.tile       = neighbors[i];
                     node.heuristic  = h;
                     node.move_count = g;
-                    node.cost       = h + node.move_count;
+                    node.cost       = h + g;
 
                     openList.push(node);
                 }
@@ -249,6 +251,7 @@
             END = getAlignedPos(getMousePosition(evt));
             ctx.clearRect(0, 0, 400, 400);
             path = [];
+            evt.preventDefault();
         }
     }
 

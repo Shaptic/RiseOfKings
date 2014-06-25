@@ -34,16 +34,10 @@ rMap.prototype.create = function() {
 rMap.prototype.getTileAt = function(x, y) {
     var pos = getAlignedPos(new vector(x, y));
 
-    if (pos.x in this.grid) {
-        if (pos.y in this.grid[pos.x]) {
-            console.log('grid position query:', pos);
-            return pos;
-        }
+    if (!(pos.x in this.grid))          return null;
+    if (!(pos.y in this.grid[pos.x]))   return null;
 
-        return null;
-    }
-
-    return null;
+    return this.grid[pos.x][pos.y];
 };
 
 rMap.prototype.isCollideableAt = function(x, y) {
@@ -55,14 +49,13 @@ rMap.prototype.isCollideableAt = function(x, y) {
                                                 this.units[i].getY()));
 
         // Ignore collisions for units in motion.
-        /*if (parseInt(this.units[i].speed.x) != 0 ||
+        if (parseInt(this.units[i].speed.x) != 0 ||
             parseInt(this.units[i].speed.y) != 0) {
             continue;
-        }*/
+        }
 
         if (parseInt(unit_pos.x) == parseInt(pos.x) &&
             parseInt(unit_pos.y) == parseInt(pos.y)) {
-            console.log('taken');
             return pos;
         }
     }

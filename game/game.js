@@ -12,7 +12,8 @@
  * [ ] Frame-rate independent move speed.
  * [*] Single unit selection w/o dragging.
  * [ ] Get into formation after attacking.
- * [*] Fix non-standard selection
+ * [*] Fix non-standard selection.
+ * [ ] Make double-click on unit select all in range.
  */
 
 function init() {
@@ -57,6 +58,9 @@ function init() {
             selectionQuad.setColor(new zogl.color4([1, 1, 1, 0.5]));
             selectionQuad.create();
             selectionQuad.move(player.selectionQuad.x, player.selectionQuad.y);
+        } else {
+            selectionQuad = new zogl.zQuad(1, 1);
+            selectionQuad.create();
         }
 
     }, false);
@@ -74,10 +78,36 @@ function init() {
 
         for (var i in player.units) {
             player.units[i].drawHealthBar();
+
+            for (var j = player.units[i].projectiles.length - 1;
+                     j >= 0; --j) {
+                player.units[i].projectiles[j].draw();
+
+                for (var k in enemy.units) {
+                    if (enemy.units[k].collides(player.units[i].projectiles[j].rect)) {
+                        enemy.units[k].doDamage(player.units[i]);
+                        player.units[i].projectiles.splice(j, 1);
+                        break;
+                    }
+                }
+            }
         }
 
         for (var i in enemy.units) {
             enemy.units[i].drawHealthBar();
+
+            for (var j = enemy.units[i].projectiles.length - 1;
+                     j >= 0; --j) {
+                enemy.units[i].projectiles[j].draw();
+
+                for (var k in player.units) {
+                    if (player.units[k].collides(enemy.units[i].projectiles[j].rect)) {
+                        player.units[k].doDamage(enemy.units[i]);
+                        enemy.units[i].projectiles.splice(j, 1);
+                        break;
+                    }
+                }
+            }
         }
 
         if (player.selectionBox !== null) {
@@ -87,23 +117,9 @@ function init() {
             gl.disable(gl.BLEND);
         }
 
-        for (var i in enemy.groups) {
-            for (var j in enemy.groups[i].units) {
-                for (var k in enemy.groups[i].units[j].orders) {
-                    var order = enemy.groups[i].units[j].orders[k];
-
-                    var z = new zogl.zQuad();
-                    z.resize(5, 5);
-                    z.move(order.position.x, order.position.y);
-                    z.create();
-                    z.draw();
-                }
-            }
-        }
-
-        for (var i in player.groups) {
+        /*for (var i in player.groups) {
             player.groups[i].astar.showPath();
-        }
+        }*/
 
         requestAnimationFrame(game);
     };

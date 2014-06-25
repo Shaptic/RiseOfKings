@@ -12,15 +12,18 @@ var UNIT_ATTRIBUTES = {
         "range": 1,
         "minrange": 0,
         "damage": 1,
-        "delay": 10
+        "delay": 10,
+        "type": "melee"
     },
 
     "archer": {
         "speed": 4,
-        "range": 3,
-        "minrange": 1,
+        "range": 3 * TILE_SIZE,
+        "minrange": 1 * TILE_SIZE,
         "damage": 1,
-        "delay": 5
+        "delay": 5,
+        "type": "ranged",
+        "rateOfFire": 20
     }
 };
 
@@ -48,19 +51,22 @@ function rUnit(scene, type) {
         q.attachTexture(tx);
         q.create();
         that.addObject(q);
+
+        that.healthBar = new zogl.zQuad(tx.size.w, 2);
+        that.healthBar.setColor("#00FF00");
+        that.healthBar.create();
+        that.healthBar.move(that.getX(), that.getY() - 3);
+        that.healthBar.enabled = false;
     });
 
-    this.healthBar = new zogl.zQuad(TILE_SIZE, 2);
-    this.healthBar.setColor("#00FF00");
-    this.healthBar.create();
-    this.healthBar.move(this.getX(), this.getY() - 3);
-    this.healthBar.enabled = false;
-
     this.orders = [];
+    this.projectiles = [];
     this.health = 100;
     this.attribs = UNIT_ATTRIBUTES[type];
     this.speed = new vector();
     this.group = null;
+
+    this.fireDelay = 0;
 }
 rUnit.prototype = new zogl.zSprite();
 rUnit.prototype.constructor = rUnit;
@@ -80,6 +86,10 @@ rUnit.prototype.update = function() {
         return;
     }
 
+    for (var i in this.projectiles) {
+        this.projectiles[i].update();
+    }
+
     if (this.orders.length) {
         var order = this.orders[0];
 
@@ -94,9 +104,9 @@ rUnit.prototype.update = function() {
         );
 
         var ready = (in_range(current.x, target.x - Math.max(5, this.speed.x),
-                              target.x + Math.max(5, this.speed.x)) &&
+                                         target.x + Math.max(5, this.speed.x)) &&
                      in_range(current.y, target.y - Math.max(5, this.speed.y),
-                              target.y + Math.max(5, this.speed.y)));
+                                         target.y + Math.max(5, this.speed.y)));
 
         var tx = order.position.x - this.getX(),
             ty = order.position.y - this.getY();
@@ -122,15 +132,25 @@ rUnit.prototype.update = function() {
         } else if (order.type == "attack") {
             var enemy = order.target;
 
-            // If w/in range, do damage.
-            // Find center points.
-
             var dist = Math.pow(enemy.getX() - this.getX(), 2) +
                        Math.pow(enemy.getY() - this.getY(), 2);
 
-            if (dist <= Math.pow(this.attribs.range * TILE_SIZE, 2) &&
+            // If w/in range, do action (fight, shoot, etc.)
+            if (dist <= Math.pow(this.attribs.range, 2) &&
                 dist >= Math.pow(this.attribs.minrange || 0, 2)) {
-                enemy.doDamage(this);
+                if (this.attribs.type == "ranged") {
+
+                    if (this.readyToFire()) {
+                        var shot = new rProjectile(null, "arrow");
+                        shot.move(this.getX(), this.getY());
+                        shot.fire(order.target);
+                        //shot.rotate(Math.atan2(...));
+                        this.projectiles.push(shot);
+                    }
+
+                } else if (this.attribs.type == "melee") {
+                    enemy.doDamage(this);
+                }
 
             // Otherwise, move towards the target.
             } else {
@@ -173,7 +193,7 @@ rUnit.prototype.draw = function(ready) {
 
 rUnit.prototype.drawHealthBar = function() {
     if (this.healthBar.enabled) {
-        //this.healthBar.draw();
+        this.healthBar.draw();
     }
 };
 
@@ -183,4 +203,14 @@ rUnit.prototype.showHealth = function() {
 
 rUnit.prototype.hideHealth = function() {
     this.healthBar.enabled = false;
+};
+
+rUnit.prototype.readyToFire = function() {
+    if (this.fireDelay <= 0) {
+        this.fireDelay = this.attribs.rateOfFire;
+        return true;
+    }
+
+    --this.fireDelay;
+    return false;
 };
