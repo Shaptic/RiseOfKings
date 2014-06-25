@@ -116,7 +116,7 @@ rUnit.prototype.update = function() {
         this.speed.y = (ty / mag) * this.attribs.speed;
 
         if (order.type == "attack" &&
-            order.target.health == 0) {
+            order.target.health <= 0) {
             this.orders.splice(0, 1);
 
         } else if (order.type == "move") {
@@ -144,7 +144,8 @@ rUnit.prototype.update = function() {
                         var shot = new rProjectile(null, "arrow");
                         shot.move(this.getX(), this.getY());
                         shot.fire(order.target);
-                        //shot.rotate(Math.atan2(...));
+                        shot.rotate(Math.atan2(order.target.getY() - this.getY(),
+                                               order.target.getX() - this.getX()));
                         this.projectiles.push(shot);
                     }
 
@@ -213,4 +214,8 @@ rUnit.prototype.readyToFire = function() {
 
     --this.fireDelay;
     return false;
+};
+
+rUnit.prototype.isAlive = function() {
+    return this.health > 0;
 };

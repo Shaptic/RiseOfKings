@@ -84,7 +84,8 @@ function init() {
                 player.units[i].projectiles[j].draw();
 
                 for (var k in enemy.units) {
-                    if (enemy.units[k].collides(player.units[i].projectiles[j].rect)) {
+                    if (enemy.units[k].isAlive() &&
+                        enemy.units[k].collides(player.units[i].projectiles[j].rect)) {
                         enemy.units[k].doDamage(player.units[i]);
                         player.units[i].projectiles.splice(j, 1);
                         break;
@@ -101,7 +102,8 @@ function init() {
                 enemy.units[i].projectiles[j].draw();
 
                 for (var k in player.units) {
-                    if (player.units[k].collides(enemy.units[i].projectiles[j].rect)) {
+                    if (player.units[k].isAlive() &&
+                        player.units[k].collides(enemy.units[i].projectiles[j].rect)) {
                         player.units[k].doDamage(enemy.units[i]);
                         enemy.units[i].projectiles.splice(j, 1);
                         break;
