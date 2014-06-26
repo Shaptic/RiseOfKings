@@ -81,6 +81,10 @@ rUnit.prototype.addOrder = function(order) {
     this.orders.push(order);
 };
 
+rUnit.prototype.pushOrderToFront = function(order) {
+    this.orders.unshift(order);
+};
+
 rUnit.prototype.update = function() {
     if (this.health <= 0) {
         this.disable();
@@ -146,6 +150,7 @@ rUnit.prototype.update = function() {
             // If w/in range, do action (fight, shoot, etc.)
             var too_close = (dist < Math.pow(this.attribs.minrange || 0, 2));
             if (dist <= Math.pow(this.attribs.range, 2) && !too_close) {
+
                 if (this.attribs.type == "ranged") {
 
                     if (this.readyToFire()) {
@@ -169,15 +174,37 @@ rUnit.prototype.update = function() {
                     }
 
                 } else if (this.attribs.type == "melee") {
-                    enemy.doDamage(this);
+
+                    if (this.readyToFire()) {
+                        enemy.doDamage(this);
+                    }
                 }
 
             // Too close to attack, flee.
             } else if (too_close === true) {
-                // Which direction should we flee in?
+                log('fleeing');
+
 
                 var order = this.orders[0];
-                log('fleeing');
+
+                // Which direction should we flee in?
+                var flee_dir = new vector(-1, -1);
+
+                if (this.getX() > order.target.getX()) {
+                    flee_dir.x *= -1;
+                }
+
+                if (this.getY() > order.target.getY()) {
+                    flee_dir.y *= -1;
+                }
+
+                // Calculate a position distance `range` away from the current
+                // location in the fleeing direction so that we can attack again.
+                this.pushOrderToFront({
+                    "type": "move",
+                    "position": new vector(this.getX() + (flee_dir.x * this.attribs.range + 1),
+                                           this.getY() + (flee_dir.y * this.attribs.range + 1))
+                });
 
             // Otherwise, move towards the target.
             } else {
