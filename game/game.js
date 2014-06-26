@@ -123,10 +123,10 @@ function init() {
             player.groups[i].astar.showPath();
         }*/
 
-        requestAnimationFrame(game);
+        requestAnimationFrame(game, glGlobals.canvas);
     };
 
-    requestAnimationFrame(game);
+    requestAnimationFrame(game, glGlobals.canvas);
 }
 
 window.onload = function() {
