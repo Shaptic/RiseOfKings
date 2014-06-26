@@ -11,13 +11,51 @@
  * [ ] Minimum attack range.
  * [ ] Frame-rate independent move speed.
  * [*] Single unit selection w/o dragging.
- * [*] Get into formation after attacking.
+ * [-] Get into formation after attacking based on the current position.
  * [*] Fix non-standard selection.
  * [*] Make double-click on unit select all in range.
  * [ ] Implement the quad-tree into the map.
  */
 
+function refreshLobby() {
+    var e = document.getElementById("hosts");
+
+    var xmlhttp = new XMLHttpRequest();
+    xmlhttp.onreadystatechange = function() {
+        if (xmlhttp.readyState == 4 && xmlhttp.status == 200) {
+            var text = JSON.parse(xmlhttp.responseText);
+
+            e.innerHTML = '<ul>';
+            for (var i in text.peers) {
+                e.innerHTML += '<li>' + '<a href="#" onclick="joinGame(\'' +
+                                text.peers[i].id + '\')">' + text.peers[i].name +
+                               '</a>' + '</li>';
+            }
+            e.innerHTML += '</ul>';
+        }
+    };
+    xmlhttp.open("GET", "http://localhost:5000/getpeers/", true);
+    xmlhttp.send();
+}
+
 function init() {
+    var peer = new Peer({key: 'lwjd5qra8257b9'});
+    peer.on('open', function(id) {
+        console.log('Peer:', id);
+
+        var xmlhttp = new XMLHttpRequest();
+        xmlhttp.open("GET", "http://localhost:5000/register/" + id, true);
+        xmlhttp.send();
+
+        var ping = function() {
+            var xmlhttp = new XMLHttpRequest();
+            xmlhttp.open("GET", "http://localhost:5000/ping/" + id, true);
+            xmlhttp.send();
+        };
+
+        setInterval(ping, 1000);
+    });
+
     var w = new zogl.zWindow(WINDOW_SIZE.w, WINDOW_SIZE.h);
     w.init();
 
@@ -59,7 +97,7 @@ function init() {
             selectionQuad.setColor(new zogl.color4([1, 1, 1, 0.5]));
             selectionQuad.create();
             selectionQuad.move(player.selectionQuad.x, player.selectionQuad.y);
-            
+
         } else {
             selectionQuad = new zogl.zQuad(1, 1);
             selectionQuad.create();
@@ -127,6 +165,8 @@ function init() {
 
         requestAnimationFrame(game, glGlobals.canvas);
     };
+
+    refreshLobby();
 
     requestAnimationFrame(game, glGlobals.canvas);
 }
