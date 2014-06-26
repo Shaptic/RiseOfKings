@@ -149,7 +149,7 @@ rGroup.prototype.assignUnits = function(units) {
     this.units = units;
 
     if (units.length == 0) {
-        this.rect  = new zogl.rect();
+        this.rect = new zogl.rect();
         return;
     }
 
@@ -173,15 +173,14 @@ function rPlayer(map, color) {
     this.color = color || "blue";
 
     this.selection = [];
-    this.selectionBox = null;   // not selecting
+    this.stopSelecting();
 
     var str = COLOR_SHADER.replace('%(COLOR)', 'vec4' + COLORS[this.color]);
     this.shader = new zogl.zShader();
     this.shader.loadFromString(zogl.SHADERS.defaultvs, str);
 
     if (this.shader.errorstr) {
-        log('errorstr: ', this.shader.errorstr);
-        throw('nope');
+        throw('Error with color shaders.');
     }
 }
 
@@ -206,26 +205,51 @@ rPlayer.prototype.handleEvent = function(evt) {
 
         // Existing selection, cancel it.
         if (this.selectionBox !== null) {
-            this.selectionBox = null;
-            this.selectionRect = null;
+            this.stopSelecting();
+        }
 
-        } else {
-            this.selectionBox = new zogl.rect(position.x, position.y, 1, 1);
+        // Try selecting here.
+        this.selectionBox = new zogl.rect(position.x, position.y, 1, 1);
 
-            /*
-             * The map has a reference to the entire game: all units and terrain.
-             * It also contains a quad-tree for easy lookup. Therefore it'd be
-             * likely faster to just query the map for units than to iterate
-             * through every guy we've got to ourselves.
-             */
+        /*
+         * The map has a reference to the entire game: all units and terrain.
+         * It also contains a quad-tree for easy lookup. Therefore it'd be
+         * likely faster to just query the map for units than to iterate
+         * through every guy we've got to ourselves.
+         */
+
+        this.selection = [];
+        var tmp = this.map.query(this.selectionBox, rUnit);
+        for (var i in tmp) {
+            if (tmp[i].color == this.color) {
+                this.selection.push(tmp[i]);
+            }
+        }
+
+        // If this was a double click on a unit, select all units of that type 
+        // within the map area.
+        if (this.just_lmb && this.selection.length === 1) {
+            var type = this.selection[0].type;
+            var results = this.map.query(
+                new zogl.rect(0, 0, WINDOW_SIZE.w, WINDOW_SIZE.h),
+                rUnit
+            );
 
             this.selection = [];
-            var tmp = this.map.query(this.selectionBox, rUnit);
-            for (var i in tmp) {
-                if (tmp[i].color == this.color) {
-                    this.selection.push(tmp[i]);
+            for (var i in results) {
+                if (results[i].type === type) {
+                    this.selection.push(results[i]);
                 }
             }
+
+            this.just_lmb = false;
+
+        // Otherwise, mark that we clicked LMB so that we can detect a double
+        // click the next time around if it is within some threshold of time.
+        } else {
+            this.just_lmb = true;
+            var that = this;
+            setTimeout(function() { that.just_lmb = false; }, 100);
         }
 
     // Mouse is moving. Hence we are either (a) adjusting the selection, (b)
@@ -248,7 +272,7 @@ rPlayer.prototype.handleEvent = function(evt) {
             this.selection = [];
             var tmp = this.map.query(this.selectionQuad, rUnit);
             for (var i in tmp) {
-                if (tmp[i].color == this.color) {
+                if (tmp[i].color === this.color) {
                     this.selection.push(tmp[i]);
                 }
             }
@@ -264,16 +288,20 @@ rPlayer.prototype.handleEvent = function(evt) {
 
         // Stop selecting.
         if (evt.button == 0 && this.selectionBox !== null) {
-            this.selectionBox = null;
-            this.selectionGroup = null;
+            this.stopSelecting();
 
         // Issue orders.
         } else if (evt.button == 2 && this.selection !== []) {
+
+            // We don't want to recreate a group for the currently selected
+            // units every time an order is issued (if no deselection between 
+            // orders), so we need to check for thatl.
             if (!this.selectionGroup) {
                 var group = new rGroup(this.map);
                 group.assignUnits(this.selection);
                 this.groups.push(group);
                 this.selectionGroup = group;
+                
             } else {
                 group = this.selectionGroup;
             }
@@ -328,4 +356,9 @@ rPlayer.prototype.update = function() {
             this.groups.splice(i, 1);
         }
     }
+};
+
+rPlayer.prototype.stopSelecting = function() {
+    this.selectionBox  = null;
+    this.selectionRect = null;
 };

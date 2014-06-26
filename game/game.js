@@ -11,9 +11,10 @@
  * [ ] Minimum attack range.
  * [ ] Frame-rate independent move speed.
  * [*] Single unit selection w/o dragging.
- * [ ] Get into formation after attacking.
+ * [*] Get into formation after attacking.
  * [*] Fix non-standard selection.
- * [ ] Make double-click on unit select all in range.
+ * [*] Make double-click on unit select all in range.
+ * [ ] Implement the quad-tree into the map.
  */
 
 function init() {
@@ -58,6 +59,7 @@ function init() {
             selectionQuad.setColor(new zogl.color4([1, 1, 1, 0.5]));
             selectionQuad.create();
             selectionQuad.move(player.selectionQuad.x, player.selectionQuad.y);
+            
         } else {
             selectionQuad = new zogl.zQuad(1, 1);
             selectionQuad.create();
