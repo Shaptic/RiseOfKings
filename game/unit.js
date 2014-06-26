@@ -81,7 +81,7 @@ rUnit.prototype.addOrder = function(order) {
     this.orders.push(order);
 };
 
-rUnit.prototype.pushOrderToFront = function(order) {
+rUnit.prototype.addOrderToFront = function(order) {
     this.orders.unshift(order);
 };
 
@@ -200,15 +200,31 @@ rUnit.prototype.update = function() {
 
                 // Calculate a position distance `range` away from the current
                 // location in the fleeing direction so that we can attack again.
-                this.pushOrderToFront({
+                this.addOrderToFront({
                     "type": "move",
-                    "position": new vector(this.getX() + (flee_dir.x * this.attribs.range + 1),
-                                           this.getY() + (flee_dir.y * this.attribs.range + 1))
+                    "position": new vector(
+                        this.getX() + (flee_dir.x * this.attribs.range + 1),
+                        this.getY() + (flee_dir.y * this.attribs.range + 1)
+                    )
                 });
 
             // Otherwise, move towards the target.
             } else {
-                this.adjust(this.speed.x, this.speed.y);
+
+                // If we are within a certain range of the target, let's "see"
+                // if it's moved from the original order position. If it is,
+                // update accordingly.
+
+                var dist = Math.pow(order.position.x - this.getX(), 2) +
+                           Math.pow(order.position.y - this.getY(), 2);
+
+                if (dist <= Math.pow(this.attribs.range, 2)) {
+                    order.position.x = enemy.getX();
+                    order.position.y = enemy.getY();
+
+                } else {
+                    this.adjust(this.speed.x, this.speed.y);
+                }
             }
         }
     }
