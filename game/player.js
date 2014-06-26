@@ -226,10 +226,13 @@ rPlayer.prototype.handleEvent = function(evt) {
             }
         }
 
-        // If this was a double click on a unit, select all units of that type 
+        log(this.just_lmb);
+        log(this.selection);
+
+        // If this was a double click on a unit, select all units of that type
         // within the map area.
         if (this.just_lmb && this.selection.length === 1) {
-            var type = this.selection[0].type;
+            var unit = this.selection[0];
             var results = this.map.query(
                 new zogl.rect(0, 0, WINDOW_SIZE.w, WINDOW_SIZE.h),
                 rUnit
@@ -237,7 +240,8 @@ rPlayer.prototype.handleEvent = function(evt) {
 
             this.selection = [];
             for (var i in results) {
-                if (results[i].type === type) {
+                if (results[i].type  === unit.type &&
+                    results[i].color ===  unit.color) {
                     this.selection.push(results[i]);
                 }
             }
@@ -249,7 +253,7 @@ rPlayer.prototype.handleEvent = function(evt) {
         } else {
             this.just_lmb = true;
             var that = this;
-            setTimeout(function() { that.just_lmb = false; }, 100);
+            setTimeout(function() { that.just_lmb = false; }, 300);
         }
 
     // Mouse is moving. Hence we are either (a) adjusting the selection, (b)
@@ -294,14 +298,14 @@ rPlayer.prototype.handleEvent = function(evt) {
         } else if (evt.button == 2 && this.selection !== []) {
 
             // We don't want to recreate a group for the currently selected
-            // units every time an order is issued (if no deselection between 
+            // units every time an order is issued (if no deselection between
             // orders), so we need to check for thatl.
             if (!this.selectionGroup) {
                 var group = new rGroup(this.map);
                 group.assignUnits(this.selection);
                 this.groups.push(group);
                 this.selectionGroup = group;
-                
+
             } else {
                 group = this.selectionGroup;
             }
@@ -361,4 +365,5 @@ rPlayer.prototype.update = function() {
 rPlayer.prototype.stopSelecting = function() {
     this.selectionBox  = null;
     this.selectionRect = null;
+    this.selectionGroup= null;
 };
