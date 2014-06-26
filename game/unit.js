@@ -8,20 +8,21 @@
 
 var UNIT_ATTRIBUTES = {
     "tank": {
+        "health": 60,
         "speed": 2,
-        "range": 1,
+        "range": 1 * TILE_SIZE,
         "minrange": 0,
         "damage": 1,
-        "delay": 10,
+        "rateOfFire": 10,
         "type": "melee"
     },
 
     "archer": {
+        "health": 30,
         "speed": 4,
         "range": 3 * TILE_SIZE,
         "minrange": 1 * TILE_SIZE,
         "damage": 1,
-        "delay": 5,
         "type": "ranged",
         "rateOfFire": 20
     }
@@ -61,8 +62,8 @@ function rUnit(scene, type) {
 
     this.orders = [];
     this.projectiles = [];
-    this.health = 100;
     this.attribs = UNIT_ATTRIBUTES[type];
+    this.health = this.attribs.health;
     this.speed = new vector();
     this.group = null;
 
@@ -112,8 +113,15 @@ rUnit.prototype.update = function() {
             ty = order.position.y - this.getY();
         var mag = Math.sqrt(tx*tx + ty*ty);
 
-        this.speed.x = (tx / mag) * this.attribs.speed;
-        this.speed.y = (ty / mag) * this.attribs.speed;
+        if (parseInt(mag) == 0) {
+            this.speed = new vector();
+            this.orders.splice(0, 1);
+            return;
+
+        } else {
+            this.speed.x = (tx / mag) * this.attribs.speed;
+            this.speed.y = (ty / mag) * this.attribs.speed;
+        }
 
         if (order.type == "attack" &&
             order.target.health <= 0) {
@@ -136,22 +144,40 @@ rUnit.prototype.update = function() {
                        Math.pow(enemy.getY() - this.getY(), 2);
 
             // If w/in range, do action (fight, shoot, etc.)
-            if (dist <= Math.pow(this.attribs.range, 2) &&
-                dist >= Math.pow(this.attribs.minrange || 0, 2)) {
+            var too_close = (dist < Math.pow(this.attribs.minrange || 0, 2));
+            if (dist <= Math.pow(this.attribs.range, 2) && !too_close) {
                 if (this.attribs.type == "ranged") {
 
                     if (this.readyToFire()) {
+                        var target_center = new vector(
+                            enemy.getX() + enemy.rect.w / 2,
+                            enemy.getY() + enemy.rect.h / 2
+                        );
+
+                        var local_center = new vector(
+                            this.getX() + this.rect.w / 2,
+                            this.getY() + this.rect.h / 2
+                        );
+
                         var shot = new rProjectile(null, "arrow");
-                        shot.move(this.getX(), this.getY());
+                        shot.move(local_center.x, local_center.y);
                         shot.fire(order.target);
-                        shot.rotate(Math.atan2(order.target.getY() - this.getY(),
-                                               order.target.getX() - this.getX()));
+                        shot.rotate(Math.atan2(target_center.y - local_center.y,
+                                               target_center.x - local_center.x));
+                        shot.unit = this;
                         this.projectiles.push(shot);
                     }
 
                 } else if (this.attribs.type == "melee") {
                     enemy.doDamage(this);
                 }
+
+            // Too close to attack, flee.
+            } else if (too_close === true) {
+                // Which direction should we flee in?
+
+                var order = this.orders[0];
+                log('fleeing');
 
             // Otherwise, move towards the target.
             } else {
@@ -165,17 +191,20 @@ rUnit.prototype.doDamage = function(obj) {
     this.health -= obj.attribs.damage;
 
     // Update the health bar.
-    this.healthBar = new zogl.zQuad(this.healthBar.size.w * (this.health / 100), 2);
+
+    // What percentage of health is remaining?
+    var fraction = this.health / this.attribs.health;
+
+    this.healthBar = new zogl.zQuad(this.rect.w * fraction, 2);
     this.healthBar.setColor("#00FF00");
     this.healthBar.create();
     this.healthBar.move(this.getX(), this.getY() - 3);
     this.healthBar.enabled = false;
 
-    // if we are not currently attacking this unit, make it an order
+    // if we are not currently attacking someone, make it an order
     // to do so soon.
     for (var i in this.orders) {
-        if (this.orders.type == "attack" &&
-            this.orders.target == obj) {
+        if (this.orders.type == "attack") {
             return;
         }
     }
@@ -193,7 +222,7 @@ rUnit.prototype.draw = function(ready) {
 };
 
 rUnit.prototype.drawHealthBar = function() {
-    if (this.healthBar.enabled) {
+    if (this.isAlive() && this.healthBar.enabled) {
         this.healthBar.draw();
     }
 };

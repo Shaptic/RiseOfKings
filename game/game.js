@@ -44,7 +44,7 @@ function init() {
 
     var playerEventHandler = function(evt) {
         player.handleEvent(evt);
-        enemy.handleEvent(evt);
+        //enemy.handleEvent(evt);
     }
 
     glGlobals.canvas.addEventListener("mousedown", playerEventHandler, false);

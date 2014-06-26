@@ -24,12 +24,16 @@ function rProjectile(scene, type) {
 
     this.target = null;
     this.speed  = new vector(0, 0);
-    this.unit   = null
+    this.unit   = null;
 }
 rProjectile.prototype = new zogl.zSprite();
 rProjectile.prototype.constructor = rProjectile;
 
 rProjectile.prototype.fire = function(target) {
+    this.start = new vector(
+        this.getX(),
+        this.getY()
+    );
     this.target = target;
 
     var tx = target.getX() - this.getX(),
@@ -41,5 +45,10 @@ rProjectile.prototype.fire = function(target) {
 };
 
 rProjectile.prototype.update = function() {
-    this.adjust(this.speed.x, this.speed.y);
+    var dist = Math.pow(this.getX() - this.start.x, 2) +
+               Math.pow(this.getY() - this.start.y, 2);
+
+    if (dist <= Math.pow(this.unit.attribs.range, 2)) {
+        this.adjust(this.speed.x, this.speed.y);
+    }
 };

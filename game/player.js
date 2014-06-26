@@ -324,7 +324,7 @@ rPlayer.prototype.update = function() {
     }
 
     for (var i = this.groups.length - 1; i >= 0; --i) {
-        if (this.groups[i].length == 0) {
+        if (this.groups[i].units.length == 0) {
             this.groups.splice(i, 1);
         }
     }
