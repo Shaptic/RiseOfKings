@@ -215,8 +215,8 @@ rUnit.prototype.update = function() {
                 // if it's moved from the original order position. If it is,
                 // update accordingly.
 
-                var dist = Math.pow(order.position.x - this.getX(), 2) +
-                           Math.pow(order.position.y - this.getY(), 2);
+                var dist = Math.pow(enemy.getX() - this.getX(), 2) +
+                           Math.pow(enemy.getY() - this.getY(), 2);
 
                 if (dist <= Math.pow(this.attribs.range, 2)) {
                     order.position.x = enemy.getX();
