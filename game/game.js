@@ -18,8 +18,7 @@
  * [ ] Make fleeing take account map boundaries.
  */
 
-var peer = null;
-var localPeerID = null;
+var sock = null;
 
 function sendRequest(type, url, onready) {
     type = type || 'GET';
@@ -38,13 +37,12 @@ function refreshLobby() {
     sendRequest("GET", "http://localhost:5000/getpeers/", function(ajax) {
         if (ajax.readyState == 4 && ajax.status == 200) {
             var text = JSON.parse(ajax.responseText);
-            console.log(text);
 
             e.innerHTML = '<ul>';
             for (var i in text.peers) {
-                if (text.peers[i].id === localPeerID) continue;
+                if (text.peers[i].id === sock.peerid) continue;
 
-                e.innerHTML += '<li>' + '<a href="#" onclick="joinGame(\'' +
+                e.innerHTML += '<li>' + '<a href="#" onclick="sock.connectTo(\'' +
                                 text.peers[i].id + '\')">' + text.peers[i].name +
                                '</a>' + '</li>';
             }
@@ -53,68 +51,8 @@ function refreshLobby() {
     });
 }
 
-function joinGame(id) {
-    console.log("Joining", id);
-    sendRequest("GET", "http://localhost:5000/connect/" + localPeerID + "/" + id);
-    setTimeout(function() {
-        var conn = peer.connect(id);
-        conn.on('open', function() {
-            conn.on('data', function(data) {
-                console.log(localPeerID + ' [recv]:' + data)
-            });
-
-            conn.send('hello');
-        });
-    }, 2000);
-}
-
 function init() {
-    peer = new Peer({
-        key: 'lwjd5qra8257b9',
-        debug: 3
-    });
-    peer.on('open', function(id) {
-        localPeerID = id;
-        console.log('Peer:', id);
-
-        sendRequest("GET", "http://localhost:5000/register/" + id);
-
-        var ping = function() {
-            sendRequest("GET", "http://localhost:5000/ping/" + id);
-        };
-        var pingid = setInterval(ping, 2000);
-
-        var cmdid = setInterval(function() {
-            sendRequest("GET", "http://localhost:5000/getcommands/" + id, function(ajax) {
-                if (ajax.readyState == 4 && ajax.status == 200) {
-                    var commands = JSON.parse(ajax.responseText);
-                    console.log(commands);
-
-                    for (var i in commands.commands) {
-                        var cmd = commands.commands[i];
-
-                        console.log('processing', cmd);
-
-                        if (cmd.type === "connect") {
-                            clearInterval(pingid);
-                            clearInterval(cmdid);
-                            console.log('Awaiting connection');
-                        }
-                    }
-                }
-            });
-        }, 1000);
-
-        peer.on("connection", function(conn) {
-            console.log('Connection established.');
-            conn.on('open', function() {
-                conn.send('hi');
-                conn.on('data', function(data) {
-                    console.log(localPeerID + ' [recv]:' + data)
-                });
-            });
-        });
-    });
+    sock = new rConnection();
 
     var w = new zogl.zWindow(WINDOW_SIZE.w, WINDOW_SIZE.h);
     w.init();
@@ -222,6 +160,8 @@ function init() {
         /*for (var i in player.groups) {
             player.groups[i].astar.showPath();
         }*/
+
+        sock.update();
 
         requestAnimationFrame(game, glGlobals.canvas);
     };
