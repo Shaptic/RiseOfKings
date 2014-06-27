@@ -8,13 +8,14 @@
  * [*] Utility file.
  * [*] Refactor into armies / players.
  * [ ] Automatic attacking when w/in range.
- * [ ] Minimum attack range.
+ * [*] Minimum attack range.
  * [ ] Frame-rate independent move speed.
  * [*] Single unit selection w/o dragging.
  * [-] Get into formation after attacking based on the current position.
  * [*] Fix non-standard selection.
  * [*] Make double-click on unit select all in range.
  * [ ] Implement the quad-tree into the map.
+ * [ ] Make fleeing take account map boundaries.
  */
 
 var peer = null;
