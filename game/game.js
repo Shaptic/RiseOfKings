@@ -17,43 +17,102 @@
  * [ ] Implement the quad-tree into the map.
  */
 
+var peer = null;
+var localPeerID = null;
+
+function sendRequest(type, url, onready) {
+    type = type || 'GET';
+    onready = onready || function() {};
+
+    var ajax = new XMLHttpRequest();
+    ajax.onreadystatechange = function() {
+        onready(ajax);
+    };
+    ajax.open(type, url, true);
+    ajax.send();
+}
+
 function refreshLobby() {
     var e = document.getElementById("hosts");
-
-    var xmlhttp = new XMLHttpRequest();
-    xmlhttp.onreadystatechange = function() {
-        if (xmlhttp.readyState == 4 && xmlhttp.status == 200) {
-            var text = JSON.parse(xmlhttp.responseText);
+    sendRequest("GET", "http://localhost:5000/getpeers/", function(ajax) {
+        if (ajax.readyState == 4 && ajax.status == 200) {
+            var text = JSON.parse(ajax.responseText);
+            console.log(text);
 
             e.innerHTML = '<ul>';
             for (var i in text.peers) {
+                if (text.peers[i].id === localPeerID) continue;
+
                 e.innerHTML += '<li>' + '<a href="#" onclick="joinGame(\'' +
                                 text.peers[i].id + '\')">' + text.peers[i].name +
                                '</a>' + '</li>';
             }
             e.innerHTML += '</ul>';
         }
-    };
-    xmlhttp.open("GET", "http://localhost:5000/getpeers/", true);
-    xmlhttp.send();
+    });
+}
+
+function joinGame(id) {
+    console.log("Joining", id);
+    sendRequest("GET", "http://localhost:5000/connect/" + localPeerID + "/" + id);
+    setTimeout(function() {
+        var conn = peer.connect(id);
+        conn.on('open', function() {
+            conn.on('data', function(data) {
+                console.log(localPeerID + ' [recv]:' + data)
+            });
+
+            conn.send('hello');
+        });
+    }, 2000);
 }
 
 function init() {
-    var peer = new Peer({key: 'lwjd5qra8257b9'});
+    peer = new Peer({
+        key: 'lwjd5qra8257b9',
+        debug: 3
+    });
     peer.on('open', function(id) {
+        localPeerID = id;
         console.log('Peer:', id);
 
-        var xmlhttp = new XMLHttpRequest();
-        xmlhttp.open("GET", "http://localhost:5000/register/" + id, true);
-        xmlhttp.send();
+        sendRequest("GET", "http://localhost:5000/register/" + id);
 
         var ping = function() {
-            var xmlhttp = new XMLHttpRequest();
-            xmlhttp.open("GET", "http://localhost:5000/ping/" + id, true);
-            xmlhttp.send();
+            sendRequest("GET", "http://localhost:5000/ping/" + id);
         };
+        var pingid = setInterval(ping, 2000);
 
-        setInterval(ping, 1000);
+        var cmdid = setInterval(function() {
+            sendRequest("GET", "http://localhost:5000/getcommands/" + id, function(ajax) {
+                if (ajax.readyState == 4 && ajax.status == 200) {
+                    var commands = JSON.parse(ajax.responseText);
+                    console.log(commands);
+
+                    for (var i in commands.commands) {
+                        var cmd = commands.commands[i];
+
+                        console.log('processing', cmd);
+
+                        if (cmd.type === "connect") {
+                            clearInterval(pingid);
+                            clearInterval(cmdid);
+                            console.log('Awaiting connection');
+                        }
+                    }
+                }
+            });
+        }, 1000);
+
+        peer.on("connection", function(conn) {
+            console.log('Connection established.');
+            conn.on('open', function() {
+                conn.send('hi');
+                conn.on('data', function(data) {
+                    console.log(localPeerID + ' [recv]:' + data)
+                });
+            });
+        });
     });
 
     var w = new zogl.zWindow(WINDOW_SIZE.w, WINDOW_SIZE.h);
@@ -167,7 +226,6 @@ function init() {
     };
 
     refreshLobby();
-
     requestAnimationFrame(game, glGlobals.canvas);
 }
 

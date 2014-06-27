@@ -9,10 +9,11 @@ class Peer:
         self.id = id_
         self.name = "Peer " + str(id_)
         self.last_ping = time.time()
+        self.commands = []
 
     def asJSON(self):
         return {
-            'id': self.name,
+            'id': self.id,
             'name': self.name
         }
 
@@ -26,17 +27,15 @@ def register_peer(peer_id):
     p = Peer(peer_id)
     gamePeers.append(p)
 
-    return make_response('Peer registered.', 200)
+    return make_response('Peer registered.', 200, {
+        'Access-Control-Allow-Origin': '*'
+    })
 
 @app.route('/getpeers/', methods=[ 'GET' ])
 def peers():
     # Find all peers that haven't pinged us back.
-    print [{'name': p.name, 'delta': time.time() - p.last_ping} for p in gamePeers]
-
     global gamePeers
     gamePeers = [p for p in gamePeers if time.time() - p.last_ping < 5]
-
-    print [{'name': p.name, 'delta': time.time() - p.last_ping} for p in gamePeers]
 
     # JSON response of peers
     return make_response((
@@ -57,7 +56,41 @@ def ping(peer_id):
         return register_peer(peer_id)
     peer[0].last_ping = time.time()
 
-    return make_response('Ping successful.', 200)
+    return make_response('Ping successful.', 200,  {
+        'Access-Control-Allow-Origin': '*'
+    })
+
+@app.route('/connect/<from_id>/<to_id>', methods=[ 'GET' ])
+def connect(from_id, to_id):
+    from_peer = [x for x in gamePeers if x.id == from_id]
+    to_peer   = [x for x in gamePeers if x.id == to_id]
+
+    if not from_peer or not to_peer:
+        return make_response('Bad ID.', 404, {
+            'Access-Control-Allow-Origin': '*'
+        })
+
+    to_peer[0].commands.append({
+        'type': 'connect',
+        'from': from_peer[0].id
+    })
+
+    return make_response('Ready.', 200,  {
+        'Access-Control-Allow-Origin': '*'
+    })
+
+@app.route('/getcommands/<peer_id>', methods=[ 'GET' ])
+def commands(peer_id):
+    peer = [x for x in gamePeers if x.id == peer_id]
+    if not peer:
+        return make_response('Bad ID.', 404, {
+            'Access-Control-Allow-Origin': '*'
+        })
+
+    peer = peer[0]
+    return make_response(jsonify({'commands': peer.commands}), 200,  {
+        'Access-Control-Allow-Origin': '*'
+    })
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', debug=True)
