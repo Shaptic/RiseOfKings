@@ -20,23 +20,13 @@
 
 var sock = null;
 
-function sendRequest(type, url, onready) {
-    type = type || 'GET';
-    onready = onready || function() {};
-
-    var ajax = new XMLHttpRequest();
-    ajax.onreadystatechange = function() {
-        onready(ajax);
-    };
-    ajax.open(type, url, true);
-    ajax.send();
-}
-
 function refreshLobby() {
     var e = document.getElementById("hosts");
-    sendRequest("GET", "http://localhost:5000/getpeers/", function(ajax) {
+    AJAX("GET", RTS_CONFIG.AUTH_SERVER+ "/getpeers/", function(ajax) {
         if (ajax.readyState == 4 && ajax.status == 200) {
             var text = JSON.parse(ajax.responseText);
+
+            console.log(text);
 
             e.innerHTML = '<ul>';
             for (var i in text.peers) {
@@ -161,10 +151,12 @@ function init() {
             player.groups[i].astar.showPath();
         }*/
 
-        sock.update();
-
         requestAnimationFrame(game, glGlobals.canvas);
     };
+
+    setInterval(function() {
+        sock.update();
+    }, 1000);
 
     refreshLobby();
     requestAnimationFrame(game, glGlobals.canvas);

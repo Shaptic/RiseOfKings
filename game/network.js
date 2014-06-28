@@ -40,6 +40,8 @@ function rConnection() {
 }
 
 rConnection.prototype.update = function() {
+    log(this.attribs);
+
     this.ticks++;
 
     /*
@@ -52,11 +54,8 @@ rConnection.prototype.update = function() {
      * connect.
      */
     if (this.attribs.open) {
-        if (this.ticks % 30 === 0) {
-            this.ping();
-        }
-
-        if (this.ticks % 60 === 0) {
+        this.ping();
+        if (this.ticks % 2 === 0) {
             this.getCommands();
             this.processCommands();
         }
@@ -97,8 +96,9 @@ rConnection.prototype.processCommands = function() {
             this.socket.on("connection", function(conn) {
                 conn.on("open", function() {
                     that.peer = conn;
-                    that.attribs.connection = true;
+                    that.attribs.connected = true;
                     that.attribs.host = true;
+                    that.attribs.open = false;
                 });
             });
         }

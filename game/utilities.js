@@ -1,7 +1,7 @@
 var TILE_SIZE = 32;
 var WINDOW_SIZE = {
-    'w': 800,
-    'h': 600
+    'w': 300,
+    'h': 250
 };
 
 var COLORS = {
