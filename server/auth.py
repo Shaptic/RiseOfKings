@@ -79,16 +79,19 @@ def connect(from_id, to_id):
         'Access-Control-Allow-Origin': '*'
     })
 
-@app.route('/getcommands/<peer_id>', methods=[ 'GET' ])
+@app.route('/commands/<peer_id>', methods=[ 'GET', 'DELETE' ])
 def commands(peer_id):
     peer = [x for x in gamePeers if x.id == peer_id]
     if not peer:
         return make_response('Bad ID.', 404, {
             'Access-Control-Allow-Origin': '*'
         })
-
     peer = peer[0]
-    return make_response(jsonify({'commands': peer.commands}), 200,  {
+
+    if request.method == 'DELETE' and peer.commands:
+        peer.commands.pop(0)
+
+    return make_response(jsonify({'commands': peer.commands}), 200, {
         'Access-Control-Allow-Origin': '*'
     })
 

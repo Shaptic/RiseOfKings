@@ -37,11 +37,24 @@ function rConnection() {
     this.commandQueue = [];
     this.ticks = 0;
     this.peerid = null;
+
+    this.socket.on("connection", function(conn) {
+        if (!that.attribs.open) throw('wat');
+
+        conn.on("open", function() {
+            that.peer = conn;
+            that.attribs.connected = true;
+            that.attribs.host = true;
+            that.attribs.open = false;
+
+            that.peer.on("data", function(data) {
+                that.peerRecv(data);
+            });
+        });
+    });
 }
 
 rConnection.prototype.update = function() {
-    log(this.attribs);
-
     this.ticks++;
 
     /*
@@ -67,7 +80,7 @@ rConnection.prototype.update = function() {
      * TODO
      */
     } else if (this.attribs.connected) {
-
+        this.peer.send('dicks' + (this.attribs.host ? ' from host' : ' from peer'));
     }
 };
 
@@ -77,7 +90,7 @@ rConnection.prototype.ping = function() {
 
 rConnection.prototype.getCommands = function() {
     var that = this;
-    AJAX("GET", RTS_CONFIG.AUTH_SERVER + "/getcommands/" + this.peerid, function(ajax) {
+    AJAX("GET", RTS_CONFIG.AUTH_SERVER + "/commands/" + this.peerid, function(ajax) {
         if (ajax.readyState == 4 && ajax.status == 200) {
             var obj = JSON.parse(ajax.responseText);
 
@@ -89,18 +102,14 @@ rConnection.prototype.getCommands = function() {
 rConnection.prototype.processCommands = function() {
     var that = this;
 
-    for (var i in this.commandQueue) {
+    for (var i = this.commandQueue.length - 1; i >= 0; --i) {
         var cmd = this.commandQueue[i];
 
+        // Someone wants to connect to us; open a connection.
         if (cmd.type === "connect" && !this.attribs.connected) {
-            this.socket.on("connection", function(conn) {
-                conn.on("open", function() {
-                    that.peer = conn;
-                    that.attribs.connected = true;
-                    that.attribs.host = true;
-                    that.attribs.open = false;
-                });
-            });
+            console.log('awaiting a connection');
+            AJAX("DELETE", RTS_CONFIG.AUTH_SERVER + "/commands/" + this.peerid);
+            this.commandQueue.splice(i, 1);
         }
     }
 };
@@ -112,12 +121,29 @@ rConnection.prototype.connectTo = function(id) {
                     this.peerid + '/' + id, function(ajax) {
             if (ajax.readyState == 4 && ajax.status == 200) {
                 that.attribs.host = false;
+
+                // Connect to the peer host.
                 that.peer = that.socket.connect(id)
+                console.log('we are connecting');
                 that.peer.on("open", function() {
+                    console.log('we are connected');
                     that.attribs.connected = true;
                     that.attribs.open = false;
+                    that.attribs.network = false;
+                });
+
+                that.peer.on("data", function(data) {
+                    that.peerRecv(data);
                 });
             }
         });
     }
+};
+
+rConnection.prototype.peerRecv = function(data) {
+    if (zogl.debug) {
+        console.log('[' + this.peerid + "] RECV: '" + data + "'");
+    }
+
+    this.commandQueue.push(data);
 };
