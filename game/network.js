@@ -17,7 +17,7 @@ function AJAX(requestType, requestURL, callback) {
 }
 
 function rConnection() {
-    var that = this;
+    var this = this;
 
     this.socket = new Peer({
         key: RTS_CONFIG.PEER_API_KEY,
@@ -25,8 +25,8 @@ function rConnection() {
     });
 
     this.socket.on("open", function(id) {
-        that.peerid = id;
-        that.attribs.open = true;
+        this.peerid = id;
+        this.attribs.open = true;
         AJAX("GET", RTS_CONFIG.AUTH_SERVER + "/register/" + id);
     });
 
@@ -41,13 +41,14 @@ function rConnection() {
     this.ticks  = 0;
     this.turn   = 0;
     this.peerid = null;
-    this.peers  = []
+    this.peers  = [];
     this.intervalHandle = null;
 
     this.socket.on("connection", function(conn) {
-        if (!that.attribs.open) throw('wat');
+        if (!this.attribs.open) throw('wat');
 
         conn.on("open", function() {
+            that.peer = conn;
             that._setupPeer(conn);
             that.attribs.host = true;
         });
@@ -151,18 +152,17 @@ rConnection.prototype.processCommands = function() {
 };
 
 rConnection.prototype.connectTo = function(id) {
-    var that = this;
+    var this = this;
     if (this.attribs.open) {
         AJAX("GET", RTS_CONFIG.AUTH_SERVER + "/connect/" +
                     this.peerid + '/' + id, function(ajax) {
             if (ajax.readyState == 4 && ajax.status == 200) {
-                that.attribs.host = false;
+                this.attribs.host = false;
 
                 // Connect to the peer host.
                 that.peer = that.socket.connect(id);
-
                 console.log('we are connecting');
-                that.peer.on("open", function() {
+                this.peer.on("open", function() {
                     console.log('we are connected');
                     that._setupPeer(that.peer);
                     that.attribs.host = false;
@@ -188,18 +188,28 @@ rConnection.prototype._setupPeer = function(conn) {
     var that = this;
 
     this.peers.push(conn);
+    
     this.attribs.open = false;
     this.attribs.connected = true;
-    this.attribs.open = false;
-    this.commandQueue = new rCommandQueue();
 
-    clearInterval(this.intervalHandle);
+    this.commandQueue = new rCommandQueue();
     
+    clearInterval(this.intervalHandle);
     this.intervalHandle = setInterval(function() {
         that.update();
     }, 1000 / RTS_CONFIG.NETWORK_FPS);
+};
 
-    conn.on("data", function(data) {
-        that.peerRecv(data);
-    });
+function rCommandQueue() {
+    this.queue = [];
+    this.tmp = "";
+}
+
+rCommandQueue.prototype.pushMessage = function(msg) {
+    this.tmp += msg;
+    this._process();
+};
+
+rCommandQueue.prototype.popMessage = function() {
+    return this.queue.shift();
 };
