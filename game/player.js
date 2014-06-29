@@ -227,9 +227,6 @@ rPlayer.prototype.handleEvent = function(evt) {
             }
         }
 
-        log(this.just_lmb);
-        log(this.selection);
-
         // If this was a double click on a unit, select all units of that type
         // within the map area.
         if (this.just_lmb && this.selection.length === 1) {

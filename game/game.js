@@ -154,9 +154,10 @@ function init() {
         requestAnimationFrame(game, glGlobals.canvas);
     };
 
-    setInterval(function() {
+    var sockHandle = setInterval(function() {
         sock.update();
     }, 1000);
+    sock.intervalHandle = sockHandle;
 
     refreshLobby();
     requestAnimationFrame(game, glGlobals.canvas);
