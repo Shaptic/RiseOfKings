@@ -1,3 +1,4 @@
+var MESSAGE_SUFFIX = "\r\n";
 var RTS_CONFIG = {
     "PEER_API_KEY": "lwjd5qra8257b9",
     "AUTH_SERVER": "http://localhost:5000"
@@ -35,7 +36,8 @@ function rConnection() {
     };
 
     this.commandQueue = [];
-    this.ticks = 0;
+    this.ticks  = 0;
+    this.turn   = 0;
     this.peerid = null;
 
     this.socket.on("connection", function(conn) {
@@ -80,7 +82,7 @@ rConnection.prototype.update = function() {
      * TODO
      */
     } else if (this.attribs.connected) {
-        this.peer.send('dicks' + (this.attribs.host ? ' from host' : ' from peer'));
+        this.sendMessage('dicks' + (this.attribs.host ? ' from host' : ' from peer'));
     }
 };
 
@@ -146,4 +148,36 @@ rConnection.prototype.peerRecv = function(data) {
     }
 
     this.commandQueue.push(data);
+};
+
+rConnection.prototype.sendMessage = function(msg) {
+    this.peer.send(this.turn + '|' + msg + MESSAGE_SUFFIX);
+};
+
+function rCommandQueue() {
+    this.queue = [];
+    this.tmp = "";
+}
+
+rCommandQueue.prototype.pushMessage = function(msg) {
+    this.tmp += msg;
+    this._process();
+};
+
+rCommandQueue.prototype.popMessage = function() {
+    return this.queue.shift();
+};
+
+rCommandQueue.prototype._process = function() {
+    var idx = this.tmp.indexOf(MESSAGE_SUFFIX);
+    if (idx == -1) return;
+
+    var msg = this.tmp.substring(0, idx + MESSAGE_SUFFIX.length);
+
+    if (zogl.debug) {
+        console.log("Processed message: '" + msg + "'");
+    }
+
+    this.queue.push(msg);
+    this.tmp.replace(msg, '');
 };

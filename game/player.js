@@ -166,10 +166,11 @@ rGroup.prototype.assignUnits = function(units) {
     }
 };
 
-function rPlayer(map, color) {
+function rPlayer(map, color, socket) {
     this.groups = [];
     this.units  = [];
     this.map    = map;
+    this.socket = socket;
     this.color = color || "blue";
 
     this.selection = [];
