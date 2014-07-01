@@ -22,6 +22,8 @@ function AJAX(requestType, requestURL, callback) {
 function rConnection(color) {
     var that = this;
 
+    this.color = color; // Our player color.
+
     this.socket = new Peer({
         key: RTS_CONFIG.PEER_API_KEY,
         debug: zogl.debug ? 4 : 0
@@ -30,7 +32,16 @@ function rConnection(color) {
     this.socket.on("open", function(id) {
         that.peerid = id;
         that.attribs.open = true;
-        AJAX("GET", RTS_CONFIG.AUTH_SERVER + "/register/" + id);
+        AJAX("GET", RTS_CONFIG.AUTH_SERVER + "/register/" + id, function(ajax) {
+            if (ajax.readyState == 4 && ajax.status == 200) {
+                var obj = JSON.parse(ajax.responseText);
+
+                that.color = obj["color"];
+                that.hostQueue.addPlayer(that.color);
+
+                console.log("We are", that.color);
+            }
+        });
     });
 
     this.attribs = {
@@ -55,15 +66,6 @@ function rConnection(color) {
 
     this.host       = null; // A connection object to the host.
 
-    this.color      = color;// Our player color.
-
-    AJAX("GET", RTS_CONFIG.AUTH_SERVER + "/color/", function(ajax) {
-        if (ajax.readyState == 4 && ajax.status == 200) {
-            that.color = ajax.responseText;
-            console.log('Color assigned:', that.color);
-        }
-    });
-
     // A handle on the current tick loop, which is adjusted post-connection
     // to match a consistent network tick-rate.
     this.intervalHandle = null;
@@ -72,7 +74,7 @@ function rConnection(color) {
 
     // Contains turn data for all players.
     this.hostTick   = 1;
-    this.hostQueue  = new rCommandQueue([this.color]);
+    this.hostQueue  = new rCommandQueue();
     this.peers      = [];   // A list of connected clients in the game
 
     this.socket.on("connection", function(conn) {
@@ -131,14 +133,28 @@ rConnection.prototype.update = function() {
          */
         if (this.attribs.host) {
 
+            // First, let's handle the "sending" of our own data.
+            if (this.sendQueue.length === 0) {
+                this.hostQueue.pushMessage({
+                    "color": this.color,
+                    "turn": this.sendTick,
+                    "misc": "complete"
+                })
+            } else {
+                for (var i in this.sendQueue) {
+                    this.hostQueue.pushMessage(this.sendQueue[i]);
+                }
+            }
+
             // Process the current buffers to see if everyone has sent their
             // data for this turn.
-            var msgs = this.hostQueue.queue[this.hostTick];
-            var noop = (msgs === undefined);
+            var msgs = this.hostQueue.queue[this.hostTick] || [];
+            var noop = false;
 
+            if (msgs.length === 0) noop = true;
             for (var i in msgs) {
                 if (msgs[i].length === 0) {
-                    console.log('Turn', this.hostTurn, 'not ready, waiting on', i);
+                    console.log('Turn', this.hostTick, 'not ready, waiting on', i);
                     noop = true;
                 }
             }
@@ -147,44 +163,50 @@ rConnection.prototype.update = function() {
             if (noop === false) {
                 console.log('broadcasting', msgs);
                 for (var j in msgs) {
-                    for (var i in this.peers) {
-                        this.sendMessage(msgs[j], this.peers[i]);
+                    for (var k in msgs[j]) {
+                        for (var i in this.peers) {
+                            this.sendMessage(msgs[j][k], this.peers[i]);
+                        }
                     }
 
                     msgs[j] = [];
                 }
 
                 this.hostTick++;
+                this.sendTick++;
+            } else {
+                console.log('[HOST] -- Clients are not ready.');
             }
-        }
+        } else {
 
-        // We have to send all turn data accumulated during this time.
+            // We have to send all turn data accumulated during this time.
 
-        // Process everything that the server has sent us for this turn.
-        for (var i in this.recvQueue) {
-            // TODO
-        }
-        this.recvQueue = [];
-
-        // Send everything that the player has done during this turn.
-
-        // Tell the host there is no data for this turn from us.
-        if (this.sendQueue.length === 0) {
-            console.log("Sending empty message.");
-            this.sendMessage({
-                "color": this.color,
-                "turn": this.sendTick,
-                "misc": "complete"
-            });
-
-        } else if (!this.attribs.host) {
-            for (var i in this.sendQueue) {
-                this.sendMessage(this.sendQueue[i], this.host);
+            // Process everything that the server has sent us for this turn.
+            for (var i in this.recvQueue) {
+                // TODO
             }
-        }
+            if (this.recvQueue.length !== 0) this.sendTick++;
+            this.recvQueue = [];
 
-        this.sendQueue = [];
-        this.sendTick++;
+            // Send everything that the player has done during this turn.
+
+            // Tell the host there is no data for this turn from us.
+            if (this.sendQueue.length === 0) {
+                console.log("Sending empty message.");
+                this.sendMessage({
+                    "color": this.color,
+                    "turn": this.sendTick,
+                    "misc": "complete"
+                });
+
+            } else {
+                for (var i in this.sendQueue) {
+                    this.sendMessage(this.sendQueue[i], this.host);
+                }
+            }
+
+            this.sendQueue = [];
+        }
 
     /*
      * Open means we are connected to the master server and awaiting
@@ -251,7 +273,10 @@ rConnection.prototype.peerRecv = function(data) {
         console.log('[' + this.peerid + "] RECV: '", data, "'");
     }
 
-    this.recvQueue.push(data);
+    // If we're the host, we need to add this data to the messaging queue.
+    // Otherwise, just to the recieving queue.
+    if (!this.attribs.host) this.recvQueue.push(data);
+    else                    this.hostQueue.pushMessage(data);
 };
 
 rConnection.prototype.sendMessage = function(obj, peer) {
@@ -291,4 +316,20 @@ rConnection.prototype._setupPeer = function(conn) {
     conn.on("data", function(d) {
         that.peerRecv(d);
     });
+};
+
+rConnection.prototype.addOrders = function(orders) {
+    if (orders instanceof Array) {
+        for (var i in orders) {
+            this.addOrders(orders[i]);
+        }
+
+        return;
+    }
+
+    if (this.attribs.host) {
+        this.hostQueue.addMessage(orders);
+    } else {
+        this.sendMessage(orders, this.host);
+    }
 };

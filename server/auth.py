@@ -38,7 +38,23 @@ def register_peer(peer_id):
     p = Peer(peer_id)
     gamePeers.append(p)
 
-    return make_response('Peer registered.', 200)
+    col = None
+    for k, v in AVAILABLE_COLORS.iteritems():
+        if AVAILABLE_COLORS[k]:
+            print k, 'is available'
+            col = k
+            AVAILABLE_COLORS[k] = False
+            break
+    else:
+        return make_response('nope', 404)
+
+    if not col.strip():
+        raise Exception("Fuck this bullshit")
+
+    print "Giving", col, "to", peer_id
+    p.color = col
+
+    return make_response(jsonify({'color': col}), 200)
 
 @app.route('/getpeers/', methods=[ 'GET' ])
 @cross_origin()
@@ -48,6 +64,7 @@ def peers():
     t = time.time()
     for gp in gamePeers:
         if t - gp.last_ping >= 5:
+            print gp.color, 'is free again'
             AVAILABLE_COLORS[gp.color] = True
 
     gamePeers = [p for p in gamePeers if time.time() - p.last_ping < 5]
@@ -102,15 +119,6 @@ def commands(peer_id):
         peer.commands.pop(0)
 
     return make_response(jsonify({'commands': peer.commands}), 200)
-
-@app.route('/color/', methods=[ 'GET' ])
-@cross_origin(methods=[ 'GET' ])
-def color():
-    c = [ k for k, v in AVAILABLE_COLORS.iteritems() if v ]
-    if not c: return make_response('nope', 404)
-
-    AVAILABLE_COLORS[c[0]] = False
-    return make_response(c[0], 200)
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', debug=True)

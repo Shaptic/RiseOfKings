@@ -50,7 +50,7 @@ rMessage.prototype.isValid = function() {
 };
 
 function rCommandQueue(colors) {
-    this.colors = colors;
+    this.colors = colors || [];
     this.queue = {};
 }
 
@@ -68,7 +68,7 @@ rCommandQueue.prototype.pushMessage = function(msg) {
     if (obj.isValid()) {
 
         // Brand new turn?
-        if (this.queue[msg.turn] === undefined) {
+        if (!(msg.turn in this.queue)) {
             this.queue[msg.turn] = {};
 
             for (var i in this.colors) {

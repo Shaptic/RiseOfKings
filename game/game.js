@@ -49,8 +49,9 @@ function init() {
 
     var scene   = new zogl.zScene();
     var gameMap = new rMap(scene);
-    var player  = new rPlayer(gameMap, sock.color);
-    var enemy   = new rPlayer(gameMap, available_colors.shift());
+    var player  = new rPlayer(gameMap, sock.color, sock);
+    var enemy   = new rPlayer(gameMap, available_colors.shift(), sock);
+    var execTick= sock.sendTick - 3;
 
     gameMap.create();
 
@@ -82,6 +83,8 @@ function init() {
     var selectionQuad = new zogl.zQuad();
 
     var game = function() {
+        execTick = sock.sendTick - 3;
+
         w.clear('#000000');
 
         player.update();
