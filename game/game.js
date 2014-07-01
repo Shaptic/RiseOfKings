@@ -33,8 +33,8 @@ function refreshLobby() {
                 if (text.peers[i].id === sock.peerid) continue;
 
                 e.innerHTML += '<li>' + '<a href="#" onclick="sock.connectTo(\'' +
-                                text.peers[i].id + '\')">' + text.peers[i].name +
-                               '</a>' + '</li>';
+                                text.peers[i].id + '\', \'' + sock.color + '\')">' +
+                                text.peers[i].name + '</a>' + '</li>';
             }
             e.innerHTML += '</ul>';
         }
@@ -42,32 +42,17 @@ function refreshLobby() {
 }
 
 function init() {
-    sock = new rConnection();
+    sock = new rConnection(available_colors.shift());
 
     var w = new zogl.zWindow(WINDOW_SIZE.w, WINDOW_SIZE.h);
     w.init();
 
     var scene   = new zogl.zScene();
     var gameMap = new rMap(scene);
-    var player  = new rPlayer(gameMap);
-    var enemy   = new rPlayer(gameMap, "red");
+    var player  = new rPlayer(gameMap, sock.color);
+    var enemy   = new rPlayer(gameMap, available_colors.shift());
 
     gameMap.create();
-
-    var UNIT_COUNT = 10;
-    var units = new Array(UNIT_COUNT);
-    for (var i = 0; i < UNIT_COUNT; ++i) {
-        var pos = getAlignedPos(new vector(TILE_SIZE * 2 * i, 100));
-
-        units[i] = scene.addObject(rUnit, [
-            scene,
-            (i > UNIT_COUNT / 2) ? "tank" : "archer"
-        ]);
-        units[i].move(pos.x, pos.y);
-    }
-
-    player.setUnits(units.slice(0, 5));
-    enemy.setUnits(units.slice(5));
 
     var playerEventHandler = function(evt) {
         player.handleEvent(evt);

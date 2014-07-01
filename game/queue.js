@@ -2,7 +2,7 @@
  * Message format:
  *
  * Messages are JSON-encoded objects containing data about the game state
- * for this particular player. Since the only messages transmitted contain 
+ * for this particular player. Since the only messages transmitted contain
  * state based on player input, messages are essentially just orders.
  *
  * Hence, the message specification is as follows:
@@ -12,59 +12,75 @@
  *
  *  "color": STRING,    // The player color that this message is for (sender ID).
  *
- *  "units": [],        // A list of integers representing unique unit IDs for 
+ *  "units": [],        // A list of integers representing unique unit IDs for
  *                      // a certain player which this message applies for. This
  *                      // is usually just determined by a map query client-side.
  *
- *  "orders": []        // A list of orders (which are JSON objects as well)
+ *  "orders": [],       // A list of orders (which are JSON objects as well)
  *                      // that apply to the above units.
+ *
+ *  "misc": STRING      // Miscallaneous data assoc. with this message.
  * };
  *
  */
 
-function rMessage(str) {
-    this.color = "";
-    this.units = [];
-    this.orders = [];
-    this.turn = 0;
+function rMessage(obj) {
+    this.valid = true;
 
-    var parts = str.split('|');
-    this.turn = parseInt(parts[0]);
+    this.valid = (
+        obj.color !== undefined &&
+        !!obj.turn
+    );
 
-    if (parts[1].indexOf(';') !== -1) {
-        var units = parts[1].split(';');
-        for (var i in units) {
-            
-        }
-    } else {
+    obj.units  = obj.units || [];
+    obj.orders = obj.orders || [];
+    obj.misc   = obj.misc || "";
 
+    if (this.valid) {
+        this.color = obj.color;
+        this.units = obj.units;
+        this.orders = obj.orders;
+        this.turn = obj.turn;
+        this.misc = obj.misc;
     }
 }
 
-function rCommandQueue() {
-    this.queue = [];
-    this.tmp = "";
+rMessage.prototype.isValid = function() {
+    return this.valid;
+};
+
+function rCommandQueue(colors) {
+    this.colors = colors;
+    this.queue = {};
 }
+
+rCommandQueue.prototype.addPlayer = function(color) {
+    this.colors.push(color);
+    for (var tick in this.queue) {
+        this.queue[tick][color] = [];
+    }
+};
 
 rCommandQueue.prototype.pushMessage = function(msg) {
-    this.tmp += msg;
-    this._process();
-};
+    var obj = new rMessage(msg);
 
-rCommandQueue.prototype.popMessage = function() {
-    return this.queue.shift();
-};
+    // Sort messages by turn, then by color.
+    if (obj.isValid()) {
 
-rCommandQueue.prototype._process = function() {
-    var idx = this.tmp.indexOf(MESSAGE_SUFFIX);
-    if (idx == -1) return;
+        // Brand new turn?
+        if (this.queue[msg.turn] === undefined) {
+            this.queue[msg.turn] = {};
 
-    var msg = this.tmp.substring(0, idx + MESSAGE_SUFFIX.length);
+            for (var i in this.colors) {
+                this.queue[msg.turn][this.colors[i]] = [];
+            }
 
-    if (zogl.debug) {
-        console.log("Processed message: '" + msg + "'");
+        // Existing turn.
+        } else {
+            this.queue[msg.turn][msg.color].push(msg);
+        }
+
+    } else {
+        throw("bad msg");
     }
-
-    this.queue.push(msg);
-    this.tmp.replace(msg, '');
 };
