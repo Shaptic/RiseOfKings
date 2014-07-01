@@ -51,7 +51,9 @@ rMessage.prototype.isValid = function() {
 
 function rCommandQueue(colors) {
     this.colors = colors || [];
-    this.queue = {};
+    this.queue = {
+        "misc": {}
+    };
 }
 
 rCommandQueue.prototype.addPlayer = function(color) {
@@ -67,13 +69,19 @@ rCommandQueue.prototype.pushMessage = function(msg) {
     // Sort messages by turn, then by color.
     if (obj.isValid()) {
 
+        // Not a player message
+        if (!(msg.color in COLORS)) {
+            this.queue['misc'][msg.color] = msg;
+
         // Brand new turn?
-        if (!(msg.turn in this.queue)) {
+        } else if (!(msg.turn in this.queue)) {
             this.queue[msg.turn] = {};
 
             for (var i in this.colors) {
                 this.queue[msg.turn][this.colors[i]] = [];
             }
+
+            this.queue[msg.turn][msg.color] = [msg];
 
         // Existing turn.
         } else {

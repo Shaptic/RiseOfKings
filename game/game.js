@@ -20,6 +20,87 @@
 
 var sock = null;
 
+var GameState = {
+    WAITING_FOR_PEERS: 1,
+    WAITING_FOR_ARMY: 2,
+    READY: 3,
+    PLAYING: 4
+};
+
+function Game() {
+    var that = this;
+
+    this.state = GameState.WAITING_FOR_PEERS;
+    this.socket = new rConnection({
+        "units": [{
+            "type": "archer"
+        }]
+    });
+
+    this.window = new zogl.zWindow(WINDOW_SIZE.w, WINDOW_SIZE.h);
+    this.window.init();
+
+    this.gameScene = new zogl.zScene();
+    this.map = new rMap(this.gameScene);
+    this.player = new rPlayer();
+    this.otherPlayers = [];
+
+    this.armyComposition = [];
+
+    this.execTick = 0;
+
+    this.intervalHandle = setInterval(function() {
+        that.gameLoop();
+    }, 500);
+
+    var sockHandle = setInterval(function() {
+        that.socket.update();
+    }, 1000);
+    this.socket.intervalHandle = sockHandle;
+
+    sock = this.socket;
+}
+
+Game.prototype.gameLoop = function() {
+    console.log("in loop", this.state);
+
+    switch(this.state) {
+
+    case GameState.WAITING_FOR_PEERS:
+        if (this.socket.peers.length > 1 ||
+            this.socket.host !== null) {
+            this.state = GameState.WAITING_FOR_ARMY;
+        }
+        break;
+
+    case GameState.WAITING_FOR_ARMY:
+        console.log("Composition isn't ready.");
+        if (this.socket.armyComposition.length === this.socket.peers.length) {
+            console.log("Composition is ready.");
+            this.armyComposition = this.socket.armyComposition;
+            this.state = GameState.READY;
+        }
+        break;
+
+    case GameState.READY:
+        this.state = GameState.PLAYING;
+        clearInterval(this.intervalHandle);
+        requestAnimationFrame(this.gameLoop, glGlobals.canvas);
+        this.gameLoop();
+        break;
+
+    case GameState.PLAYING:
+        console.log("playing game");
+
+        this.state = GameState.PLAYING;
+        this.window.clear('#000000');
+        this.gameScene.draw();
+        requestAnimationFrame(this.gameLoop, glGlobals.canvas);
+
+        break;
+    }
+};
+
 function refreshLobby() {
     var e = document.getElementById("hosts");
     AJAX("GET", RTS_CONFIG.AUTH_SERVER+ "/getpeers/", function(ajax) {
@@ -41,17 +122,39 @@ function refreshLobby() {
     });
 }
 
-function init() {
-    sock = new rConnection(available_colors.shift());
-
+function initializeGame(army, socket) {
     var w = new zogl.zWindow(WINDOW_SIZE.w, WINDOW_SIZE.h);
     w.init();
 
     var scene   = new zogl.zScene();
     var gameMap = new rMap(scene);
     var player  = new rPlayer(gameMap, sock.color, sock);
-    var enemy   = new rPlayer(gameMap, available_colors.shift(), sock);
+    var enemies = new Array(sock.peers.length - 1);
     var execTick= sock.sendTick - 3;
+
+    var units = new Array(army_composition.length);
+    for (var i in army_composition[sock.color]) {
+        var u = new rUnit(scene, army_composition[i].type);
+        units.push(u);
+    }
+    player.setUnits(units);
+
+    sock.setOnUpdate(function(commands) {
+        for (var color in commands) {
+            var cmds = commands[color];
+            for (var i in cmds.orders) {
+                var order = cmds.orders[i];
+
+                if (order.type === "create") {
+                    if (color === enemy.color) {
+                        enemyUnits.push(new rUnit(scene, order.unitType));
+                    }
+                }
+            }
+        }
+
+        enemy.setUnits(enemyUnits);
+    });
 
     gameMap.create();
 
@@ -82,7 +185,7 @@ function init() {
 
     var selectionQuad = new zogl.zQuad();
 
-    var game = function() {
+    var gameLoop = function() {
         execTick = sock.sendTick - 3;
 
         w.clear('#000000');
@@ -139,20 +242,14 @@ function init() {
             player.groups[i].astar.showPath();
         }*/
 
-        requestAnimationFrame(game, glGlobals.canvas);
+        requestAnimationFrame(gameLoop, glGlobals.canvas);
     };
 
-    var sockHandle = setInterval(function() {
-        sock.update();
-    }, 1000);
-    sock.intervalHandle = sockHandle;
-
-    refreshLobby();
-    requestAnimationFrame(game, glGlobals.canvas);
+    requestAnimationFrame(gameLoop, glGlobals.canvas);
 }
 
 window.onload = function() {
     zogl.debug = true;
     zogl.init(document.getElementById('webgl-canvas'));
-    init();
+    var g = new Game();
 };

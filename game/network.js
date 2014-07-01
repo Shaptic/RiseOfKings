@@ -19,10 +19,10 @@ function AJAX(requestType, requestURL, callback) {
     ajax.send();
 }
 
-function rConnection(color) {
+function rConnection(army) {
     var that = this;
 
-    this.color = color; // Our player color.
+    this.color = null; // Our player color.
 
     this.socket = new Peer({
         key: RTS_CONFIG.PEER_API_KEY,
@@ -37,7 +37,9 @@ function rConnection(color) {
                 var obj = JSON.parse(ajax.responseText);
 
                 that.color = obj["color"];
+                army.color = that.color;
                 that.hostQueue.addPlayer(that.color);
+                that.armyComposition.push(army);
 
                 console.log("We are", that.color);
             }
@@ -49,6 +51,10 @@ function rConnection(color) {
         "open": false,
         "connected": false
     };
+
+    // Contains the army composition for every connected player.
+    // This is used to start the initial game state.
+    this.armyComposition = [];
 
     this.recvQueue  = [];   // List of messages for client to execute
     this.sendQueue  = [];   // List of messages to send to the host for broadcast
@@ -172,18 +178,39 @@ rConnection.prototype.update = function() {
                     msgs[j] = [];
                 }
 
+                // Handle misc. messages from clients. Army composition
+                // broadcasts fall into this category. If we have such a
+                // broadcast pending, build our own composition and tell
+                // everyone else about it.
+                if ("misc"      in this.hostQueue.queue &&
+                    "army_comp" in this.hostQueue.queue["misc"]) {
+                    this.armyComposition.push(
+                        this.hostQueue.queue["misc"]["army_comp"].misc
+                    );
+                    this.sendMessage({
+                        "color": "army_comp",
+                        "turn": this.sendTick,
+                        "misc": this.armyComposition
+                    });
+                    delete this.hostQueue.queue["misc"]["army_comp"];
+                }
+
                 this.hostTick++;
                 this.sendTick++;
+
             } else {
                 console.log('[HOST] -- Clients are not ready.');
             }
+
         } else {
 
             // We have to send all turn data accumulated during this time.
 
             // Process everything that the server has sent us for this turn.
             for (var i in this.recvQueue) {
-                // TODO
+                if (this.recvQueue.color == "army_comp") {
+                    this.armyComposition = this.recvQueue.misc;
+                }
             }
             if (this.recvQueue.length !== 0) this.sendTick++;
             this.recvQueue = [];
@@ -214,8 +241,7 @@ rConnection.prototype.update = function() {
      * to join.
      *
      * When this is true, we need to continue pinging the server to let him
-     * know we're alive. And request commands, to ask if anyone wants to
-     * connect.
+     * know we're alive.
      */
     } else if (this.attribs.open) {
         this.ping();
@@ -259,6 +285,15 @@ rConnection.prototype.connectTo = function(id, color) {
                         that._setupPeer(conn);
                         that.attribs.host = false;
                         that.host = conn;
+
+                        // Send him our army composition data.
+                        setTimeout(function() {
+                            that.sendMessage({
+                                "color": "army_comp",
+                                "turn": that.sendTick,
+                                "misc": that.armyComposition[0]
+                            }, that.host)
+                        }, 1000);
                     });
                 }, 1000);
             }
@@ -302,7 +337,6 @@ rConnection.prototype.sendMessage = function(obj, peer) {
 rConnection.prototype._setupPeer = function(conn) {
     var that = this;
 
-    // Hosts only.
     this.peers.push(conn);
 
     this.attribs.open = false;
