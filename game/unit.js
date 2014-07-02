@@ -42,6 +42,7 @@ function rUnit(scene, type) {
     }
 
     // Create our sprites.
+    console.log('Loading unit of type', type);
     var tx = new zogl.zTexture();
     tx.loadFromFile(type + ".png");
 

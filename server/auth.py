@@ -63,7 +63,7 @@ def peers():
     global gamePeers
     t = time.time()
     for gp in gamePeers:
-        if t - gp.last_ping >= 5:
+        if t - gp.last_ping >= 5 and gp.color:
             print gp.color, 'is free again'
             AVAILABLE_COLORS[gp.color] = True
 

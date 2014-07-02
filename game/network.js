@@ -38,6 +38,13 @@ function rConnection(army) {
 
                 that.color = obj["color"];
                 army.color = that.color;
+                for (var i in army.units) {
+                    army.units[i].position = {
+                        'x': Math.floor(Math.random() * (WINDOW_SIZE.w - 100)),
+                        'y': Math.floor(Math.random() * (WINDOW_SIZE.h - 100)),
+                    };
+                }
+
                 that.hostQueue.addPlayer(that.color);
                 that.armyComposition.push(army);
 
@@ -49,7 +56,8 @@ function rConnection(army) {
     this.attribs = {
         "host": false,
         "open": false,
-        "connected": false
+        "connected": false,
+        "singleplayer": false
     };
 
     // Contains the army composition for every connected player.
@@ -208,8 +216,9 @@ rConnection.prototype.update = function() {
 
             // Process everything that the server has sent us for this turn.
             for (var i in this.recvQueue) {
-                if (this.recvQueue.color == "army_comp") {
-                    this.armyComposition = this.recvQueue.misc;
+                if (this.recvQueue[i].color == "army_comp") {
+                    console.log('client grok army comp', this.recvQueue[i])
+                    this.armyComposition = this.recvQueue[i].misc;
                 }
             }
             if (this.recvQueue.length !== 0) this.sendTick++;

@@ -12,23 +12,15 @@ COLOR_SHADER = [
     '}'
 ].join('\n');
 
-function rPlayer(map, color, socket) {
+function rPlayer(map, color) {
     this.groups = [];
     this.units  = [];
     this.map    = map;
-    this.socket = socket;
-    this.color = color || "blue";
 
     this.selection = [];
     this.stopSelecting();
 
-    var str = COLOR_SHADER.replace('%(COLOR)', 'vec4' + COLORS[this.color]);
-    this.shader = new zogl.zShader();
-    this.shader.loadFromString(zogl.SHADERS.defaultvs, str);
-
-    if (this.shader.errorstr) {
-        throw('Error with color shaders.');
-    }
+    this.setColor(color || "blue");
 }
 
 rPlayer.prototype.setUnits = function(units) {
@@ -205,8 +197,8 @@ rPlayer.prototype.handleEvent = function(evt) {
                 "color": this.color,
                 "orders": [order],
                 "units": group.units,
-                "turn": this.socket.sendTurn,
-                "misc": "attack order"
+                "turn": this.socket.sendTick,
+                "misc": (order.type + " order")
             };
 
             socket.addOrders(sockOrder);
@@ -235,4 +227,16 @@ rPlayer.prototype.stopSelecting = function() {
     this.selectionBox  = null;
     this.selectionRect = null;
     this.selectionGroup= null;
+};
+
+rPlayer.prototype.setColor = function(col) {
+    this.color = col;
+
+    var str = COLOR_SHADER.replace('%(COLOR)', 'vec4' + COLORS[this.color]);
+    this.shader = new zogl.zShader();
+    this.shader.loadFromString(zogl.SHADERS.defaultvs, str);
+
+    if (this.shader.errorstr) {
+        throw('Error with color shaders.');
+    }
 };

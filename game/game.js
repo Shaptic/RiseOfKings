@@ -42,7 +42,7 @@ function Game() {
 
     this.gameScene = new zogl.zScene();
     this.map = new rMap(this.gameScene);
-    this.player = new rPlayer();
+    this.player = new rPlayer(this.map);
     this.otherPlayers = [];
 
     this.armyComposition = [];
@@ -62,43 +62,145 @@ function Game() {
 }
 
 Game.prototype.gameLoop = function() {
-    console.log("in loop", this.state);
-
+    var that = this;
     switch(this.state) {
 
     case GameState.WAITING_FOR_PEERS:
         if (this.socket.peers.length > 1 ||
-            this.socket.host !== null) {
+            this.socket.host !== null    ||
+            this.socket.attribs.host     ||
+            this.socket.attribs.singleplayer) {
             this.state = GameState.WAITING_FOR_ARMY;
         }
         break;
 
     case GameState.WAITING_FOR_ARMY:
-        console.log("Composition isn't ready.");
-        if (this.socket.armyComposition.length === this.socket.peers.length) {
+        this.player.setColor(this.socket.color);
+
+        if ((this.socket.armyComposition.length > 1 &&
+             this.socket.armyComposition.length === this.socket.peers.length + 1) ||
+            this.socket.attribs.singleplayer) {
             console.log("Composition is ready.");
             this.armyComposition = this.socket.armyComposition;
             this.state = GameState.READY;
+        } else {
+            console.log("Composition isn't ready.", this.socket.armyComposition);
         }
         break;
 
     case GameState.READY:
+        var that = this;
+
+        this.map.create();
+
+        var c = this.socket.color;
+        var list = null;
+        for (var i in this.armyComposition) {
+            if (this.armyComposition[i].color === c) {
+                list = this.armyComposition[i].units;
+                break;
+            }
+        }
+
+        var units = [];
+        for (var i in list) {
+            var u = this.gameScene.addObject(rUnit, [this.gameScene, list[i].type]);
+            u.move(list[i].position.x, list[i].position.y);
+            units.push(u);
+        }
+
+        this.player.setUnits(units);
+
+        for (var i in this.armyComposition) {
+            if (this.armyComposition[i].color === c) continue;
+
+            var list = this.armyComposition[i].units;
+            var p = new rPlayer(this.map, this.armyComposition[i].color);
+            var units = [];
+
+            for (var j in list) {
+
+                var u = this.gameScene.addObject(
+                    rUnit, [this.gameScene, list[j].type]
+                );
+                u.move(list[j].position.x, list[j].position.y);
+
+                units.push(u);
+            }
+
+            p.setUnits(units);
+            this.otherPlayers.push(p);
+        }
+
+        this.selectionQuad = new zogl.zQuad();
+        this.setupEventHandlers();
+
         this.state = GameState.PLAYING;
         clearInterval(this.intervalHandle);
-        requestAnimationFrame(this.gameLoop, glGlobals.canvas);
+        requestAnimationFrame(function() {
+            that.gameLoop();
+        }, glGlobals.canvas);
         this.gameLoop();
         break;
 
     case GameState.PLAYING:
-        console.log("playing game");
+        console.log(this.player.selection);
 
-        this.state = GameState.PLAYING;
         this.window.clear('#000000');
-        this.gameScene.draw();
-        requestAnimationFrame(this.gameLoop, glGlobals.canvas);
 
+        this.player.update();
+        for (var i in this.otherPlayers) {
+            this.otherPlayers[i].update();
+        }
+
+        this.gameScene.draw();
+
+        for (var i in this.player.selection) {
+            this.player.selection[i].drawHealthBar();
+        }
+
+        if (this.player.selectionBox !== null) {
+            gl.enable(gl.BLEND);
+            gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+            this.selectionQuad.draw();
+            gl.disable(gl.BLEND);
+        }
+
+        requestAnimationFrame(function() {
+            that.gameLoop();
+        }, glGlobals.canvas);
         break;
     }
+};
+
+Game.prototype.setupEventHandlers = function() {
+    var that = this;
+
+    var playerEventHandler = function(evt) {
+        that.player.handleEvent(evt);
+    }
+
+    glGlobals.canvas.addEventListener("mousedown", playerEventHandler, false);
+    glGlobals.canvas.addEventListener("mouseup",   playerEventHandler, false);
+    glGlobals.canvas.addEventListener("mousemove", function(evt) {
+        playerEventHandler(evt);
+
+        if (that.player.selectionBox !== null) {
+            that.selectionQuad = new zogl.zQuad(that.player.selectionQuad.w,
+                                                that.player.selectionQuad.h);
+            that.selectionQuad.setColor(new zogl.color4([1, 1, 1, 0.5]));
+            that.selectionQuad.create();
+            that.selectionQuad.move(that.player.selectionQuad.x,
+                                    that.player.selectionQuad.y);
+
+        } else {
+            that.selectionQuad = new zogl.zQuad(1, 1);
+            that.selectionQuad.create();
+        }
+
+    }, false);
+    glGlobals.canvas.addEventListener("mouseout",  playerEventHandler, false);
+
 };
 
 function refreshLobby() {
