@@ -64,6 +64,9 @@ function rConnection(army) {
     // This is used to start the initial game state.
     this.armyComposition = [];
 
+    // Handler for when messages are received.
+    this.onRecv = function() {}
+
     this.recvQueue  = [];   // List of messages for client to execute
     this.sendQueue  = [];   // List of messages to send to the host for broadcast
 
@@ -175,12 +178,11 @@ rConnection.prototype.update = function() {
 
             // We're good. Let's send turn data to all clients.
             if (noop === false) {
-                console.log('broadcasting', msgs);
-                for (var j in msgs) {
-                    for (var k in msgs[j]) {
-                        for (var i in this.peers) {
-                            this.sendMessage(msgs[j][k], this.peers[i]);
-                        }
+                console.log(this.hostTick, 'is ready, broadcasting', msgs);
+                for (var j in msgs) {   // For every color
+                    for (var k in msgs[j]) {    // For every message
+                        this.sendMessage(msgs[j][k], null);
+                        this.onRecv(msgs[j][k]);
                     }
 
                     msgs[j] = [];
@@ -205,9 +207,6 @@ rConnection.prototype.update = function() {
 
                 this.hostTick++;
                 this.sendTick++;
-
-            } else {
-                console.log('[HOST] -- Clients are not ready.');
             }
 
         } else {
@@ -219,6 +218,8 @@ rConnection.prototype.update = function() {
                 if (this.recvQueue[i].color == "army_comp") {
                     console.log('client grok army comp', this.recvQueue[i])
                     this.armyComposition = this.recvQueue[i].misc;
+                } else {
+                    this.onRecv(this.recvQueue[i]);
                 }
             }
             if (this.recvQueue.length !== 0) this.sendTick++;
@@ -228,7 +229,7 @@ rConnection.prototype.update = function() {
 
             // Tell the host there is no data for this turn from us.
             if (this.sendQueue.length === 0) {
-                console.log("Sending empty message.");
+                console.log("Sending empty message for tick", this.sendTick);
                 this.sendMessage({
                     "color": this.color,
                     "turn": this.sendTick,
@@ -371,8 +372,9 @@ rConnection.prototype.addOrders = function(orders) {
     }
 
     if (this.attribs.host) {
-        this.hostQueue.addMessage(orders);
+        this.hostQueue.pushMessage(orders);
     } else {
         this.sendMessage(orders, this.host);
     }
 };
+

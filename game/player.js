@@ -12,10 +12,11 @@ COLOR_SHADER = [
     '}'
 ].join('\n');
 
-function rPlayer(map, color) {
+function rPlayer(map, color, socket) {
     this.groups = [];
     this.units  = [];
     this.map    = map;
+    this.socket = socket;
 
     this.selection = [];
     this.stopSelecting();
@@ -168,7 +169,10 @@ rPlayer.prototype.handleEvent = function(evt) {
             if (is_attack) {
                 order = {
                     "type": "attack",
-                    "position": position,
+                    "position": {
+                        'x': position.x,
+                        'y': position.y
+                    },
                     "target": units[i]
                 };
 
@@ -184,7 +188,10 @@ rPlayer.prototype.handleEvent = function(evt) {
             } else {
                 order = {
                     "type": "move",
-                    "position": position
+                    "position": {
+                        'x': position.x,
+                        'y': position.y
+                    }
                 };
 
                 /*group.giveOrders({
@@ -193,15 +200,21 @@ rPlayer.prototype.handleEvent = function(evt) {
                 });*/
             }
 
+            var ids = [];
+            for (var i in group.units) {
+                ids.push(group.units[i].id);
+            }
+
             var sockOrder = {
                 "color": this.color,
                 "orders": [order],
-                "units": group.units,
+                "units": ids,
                 "turn": this.socket.sendTick,
                 "misc": (order.type + " order")
             };
 
-            socket.addOrders(sockOrder);
+            console.log("Adding", order.type, "order");
+            this.socket.addOrders(sockOrder);
         }
     }
 };

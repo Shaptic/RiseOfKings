@@ -6,6 +6,8 @@
  *  }
  */
 
+var UNIT_ID = 1;
+
 var UNIT_ATTRIBUTES = {
     "tank": {
         "health": 60,
@@ -67,8 +69,10 @@ function rUnit(scene, type) {
     this.health = this.attribs.health;
     this.speed = new vector();
     this.group = null;
-
+    this.id = UNIT_ID;
     this.fireDelay = 0;
+
+    UNIT_ID++;
 }
 rUnit.prototype = new zogl.zSprite();
 rUnit.prototype.constructor = rUnit;

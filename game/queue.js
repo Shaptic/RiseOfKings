@@ -69,6 +69,11 @@ rCommandQueue.prototype.pushMessage = function(msg) {
     // Sort messages by turn, then by color.
     if (obj.isValid()) {
 
+        if (msg.misc !== "complete" && msg.color in COLORS) {
+            console.log("received order", msg.orders[0].type, "for", msg.color,
+                        "on", msg.turn);
+        }
+
         // Not a player message
         if (!(msg.color in COLORS)) {
             this.queue['misc'][msg.color] = msg;

@@ -28,6 +28,8 @@ var GameState = {
 };
 
 function Game() {
+    zogl.debug = false;
+
     var that = this;
 
     this.state = GameState.WAITING_FOR_PEERS;
@@ -42,7 +44,7 @@ function Game() {
 
     this.gameScene = new zogl.zScene();
     this.map = new rMap(this.gameScene);
-    this.player = new rPlayer(this.map);
+    this.player = new rPlayer(this.map, null, this.socket);
     this.otherPlayers = [];
 
     this.armyComposition = [];
@@ -80,11 +82,8 @@ Game.prototype.gameLoop = function() {
         if ((this.socket.armyComposition.length > 1 &&
              this.socket.armyComposition.length === this.socket.peers.length + 1) ||
             this.socket.attribs.singleplayer) {
-            console.log("Composition is ready.");
             this.armyComposition = this.socket.armyComposition;
             this.state = GameState.READY;
-        } else {
-            console.log("Composition isn't ready.", this.socket.armyComposition);
         }
         break;
 
@@ -94,28 +93,8 @@ Game.prototype.gameLoop = function() {
         this.map.create();
 
         var c = this.socket.color;
-        var list = null;
         for (var i in this.armyComposition) {
-            if (this.armyComposition[i].color === c) {
-                list = this.armyComposition[i].units;
-                break;
-            }
-        }
-
-        var units = [];
-        for (var i in list) {
-            var u = this.gameScene.addObject(rUnit, [this.gameScene, list[i].type]);
-            u.move(list[i].position.x, list[i].position.y);
-            units.push(u);
-        }
-
-        this.player.setUnits(units);
-
-        for (var i in this.armyComposition) {
-            if (this.armyComposition[i].color === c) continue;
-
             var list = this.armyComposition[i].units;
-            var p = new rPlayer(this.map, this.armyComposition[i].color);
             var units = [];
 
             for (var j in list) {
@@ -128,12 +107,50 @@ Game.prototype.gameLoop = function() {
                 units.push(u);
             }
 
-            p.setUnits(units);
-            this.otherPlayers.push(p);
+            if (this.armyComposition[i].color === c) {
+                this.player.setUnits(units);
+            } else {
+                var p = new rPlayer(this.map, this.armyComposition[i].color);
+                p.setUnits(units);
+                this.otherPlayers.push(p);
+            }
         }
 
         this.selectionQuad = new zogl.zQuad();
         this.setupEventHandlers();
+
+        this.socket.onRecv = function(msg) {
+            if (msg.misc === "complete") {
+                return;
+            }
+
+            console.log("Processing", msg);
+
+            for (var i in that.otherPlayers) {
+                var group = new rSquad(that.map);
+
+                if (that.otherPlayers[i].color !== msg.color &&
+                    that.player.color          !== msg.color) continue;
+
+                var p = (that.otherPlayers[i].color === msg.color) ?
+                         that.otherPlayers[i] : that.player;
+
+                var units = [];
+                for (var j in msg.units) {
+                    for (var k in p.units) {
+                        if (p.units[k].id === msg.units[j]) {
+                            units.push(p.units[k]);
+                        }
+                    }
+                }
+
+                console.log("Giving order to", p.color, msg.orders);
+
+                group.assignUnits(units);
+                group.giveOrders(msg.orders);
+                p.groups.push(group);
+            }
+        }
 
         this.state = GameState.PLAYING;
         clearInterval(this.intervalHandle);
@@ -144,7 +161,16 @@ Game.prototype.gameLoop = function() {
         break;
 
     case GameState.PLAYING:
-        console.log(this.player.selection);
+        requestAnimationFrame(function() {
+            that.gameLoop();
+        }, glGlobals.canvas);
+
+        this.execTick = this.socket.sendTick - 3;
+
+        if (this.execTick < 0) {
+            console.log(this.socket.sendTick);
+            break;
+        }
 
         this.window.clear('#000000');
 
@@ -166,9 +192,6 @@ Game.prototype.gameLoop = function() {
             gl.disable(gl.BLEND);
         }
 
-        requestAnimationFrame(function() {
-            that.gameLoop();
-        }, glGlobals.canvas);
         break;
     }
 };
