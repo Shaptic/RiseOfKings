@@ -45,7 +45,7 @@ function rConnection(army) {
                     };
                 }
 
-                that.hostQueue.addPlayer(that.color);
+                that.recvQueue.addPlayer(that.color);
                 that.armyComposition.push(army);
 
                 console.log("We are", that.color);
@@ -64,10 +64,11 @@ function rConnection(army) {
     // This is used to start the initial game state.
     this.armyComposition = [];
 
-    // Handler for when messages are received.
-    this.onRecv = function() {}
+    // List of messages for client to execute
+    // For the host, this contains turn data for all players.
+    this.recvQueue  = new rCommandQueue();
 
-    this.recvQueue  = [];   // List of messages for client to execute
+    this.authQueue  = [];   // List of messages from the authorization server
     this.sendQueue  = [];   // List of messages to send to the host for broadcast
 
     this.sendTick   = 1;    // The current network tick. It represents the exact
@@ -88,10 +89,6 @@ function rConnection(army) {
     this.intervalHandle = null;
 
     // HOST ONLY
-
-    // Contains turn data for all players.
-    this.hostTick   = 1;
-    this.hostQueue  = new rCommandQueue();
     this.peers      = [];   // A list of connected clients in the game
 
     this.socket.on("connection", function(conn) {
@@ -104,15 +101,16 @@ function rConnection(army) {
             // After commands are retrieved, process them.
             that.getCommands(function() {
 
-                for (var i = that.recvQueue.length - 1; i >= 0; --i) {
-                    var cmd = that.recvQueue[i];
+                for (var i = that.authQueue.length - 1; i >= 0; --i) {
+                    var cmd = that.authQueue[i];
 
                     // Someone officially really does want to connect to us, so
                     // we can check for an ID match and accept the connection.
                     if (cmd.type === "connect" && !that.attribs.connected) {
                         console.log('expecting a connection from', cmd.from);
-                        AJAX("DELETE", RTS_CONFIG.AUTH_SERVER + "/commands/" + that.peerid);
-                        that.recvQueue.splice(i, 1);
+                        AJAX("DELETE", RTS_CONFIG.AUTH_SERVER + "/commands/" +
+                                       that.peerid);
+                        that.authQueue.splice(i, 1);
 
                         if (conn.peer !== cmd.from) {
                             conn.close();
@@ -128,8 +126,8 @@ function rConnection(army) {
                         that._setupPeer(conn);
 
                         // Host specific settings.
-                        that.hostQueue.addPlayer(conn.metadata.color);
                         that.attribs.host = true;
+                        that.recvQueue.addPlayer(conn.metadata.color);
                     }
                 }
             });
@@ -152,37 +150,38 @@ rConnection.prototype.update = function() {
 
             // First, let's handle the "sending" of our own data.
             if (this.sendQueue.length === 0) {
-                this.hostQueue.pushMessage({
+                this.recvQueue.pushMessage({
                     "color": this.color,
                     "turn": this.sendTick,
                     "misc": "complete"
                 })
             } else {
                 for (var i in this.sendQueue) {
-                    this.hostQueue.pushMessage(this.sendQueue[i]);
+                    this.recvQueue.pushMessage(this.sendQueue[i]);
                 }
             }
 
             // Process the current buffers to see if everyone has sent their
             // data for this turn.
-            var msgs = this.hostQueue.queue[this.hostTick] || [];
+            var msgs = this.recvQueue.queue[this.sendTick] || [];
             var noop = false;
 
-            if (msgs.length === 0) noop = true;
+            if (msgs.length === 0 && !("army_comp" in this.recvQueue.queue["misc"]))
+                noop = true;
+
             for (var i in msgs) {
                 if (msgs[i].length === 0) {
-                    console.log('Turn', this.hostTick, 'not ready, waiting on', i);
+                    console.log('Turn', this.sendTick, 'not ready, waiting on', i);
                     noop = true;
                 }
             }
 
             // We're good. Let's send turn data to all clients.
             if (noop === false) {
-                console.log(this.hostTick, 'is ready, broadcasting', msgs);
-                for (var j in msgs) {   // For every color
+                console.log(this.sendTick, 'is ready, broadcasting', msgs);
+                for (var j in msgs) {           // For every color
                     for (var k in msgs[j]) {    // For every message
-                        this.sendMessage(msgs[j][k], null);
-                        this.onRecv(msgs[j][k]);
+                        this.sendMessage(msgs[j][k]);
                     }
 
                     msgs[j] = [];
@@ -192,20 +191,23 @@ rConnection.prototype.update = function() {
                 // broadcasts fall into this category. If we have such a
                 // broadcast pending, build our own composition and tell
                 // everyone else about it.
-                if ("misc"      in this.hostQueue.queue &&
-                    "army_comp" in this.hostQueue.queue["misc"]) {
-                    this.armyComposition.push(
-                        this.hostQueue.queue["misc"]["army_comp"].misc
-                    );
-                    this.sendMessage({
-                        "color": "army_comp",
-                        "turn": this.sendTick,
-                        "misc": this.armyComposition
-                    });
-                    delete this.hostQueue.queue["misc"]["army_comp"];
+                for (var type in this.recvQueue.queue["misc"]) {
+
+                    if (type === "army_comp") {
+                        this.armyComposition.push(
+                            this.recvQueue.queue["misc"][type].misc
+                        );
+
+                        this.sendMessage({
+                            "color": type,
+                            "turn": this.sendTick,
+                            "misc": this.armyComposition
+                        });
+
+                        delete this.recvQueue.queue["misc"][type];
+                    }
                 }
 
-                this.hostTick++;
                 this.sendTick++;
             }
 
@@ -214,16 +216,35 @@ rConnection.prototype.update = function() {
             // We have to send all turn data accumulated during this time.
 
             // Process everything that the server has sent us for this turn.
-            for (var i in this.recvQueue) {
-                if (this.recvQueue[i].color == "army_comp") {
-                    console.log('client grok army comp', this.recvQueue[i])
-                    this.armyComposition = this.recvQueue[i].misc;
-                } else {
-                    this.onRecv(this.recvQueue[i]);
+            for (var tick in this.recvQueue.queue) {
+                for (var color in this.recvQueue.queue[tick]) {
+                    var msgs = this.recvQueue.queue[tick][color];
+
+                    for (var i in msgs) {
+
+                        // Do things with messages here.
+                    }
                 }
             }
-            if (this.recvQueue.length !== 0) this.sendTick++;
-            this.recvQueue = [];
+
+            // Process misc. messages, if any.
+            for (var type in this.recvQueue.queue["misc"]) {
+                var msg = this.recvQueue.queue["misc"][type];
+
+                if (type === "army_comp") {
+                    console.log('client grok army comp', msg.misc);
+
+                    this.armyComposition = msg.misc;
+                    delete this.recvQueue.queue["misc"][type];
+
+                    break;
+                }
+            }
+
+            if (this.getMessages(this.sendTick, this.color).length !== 0) {
+                console.log("Server says we are ready, tick", this.sendTick, "is complete.");
+                this.sendTick++;
+            }
 
             // Send everything that the player has done during this turn.
 
@@ -268,7 +289,7 @@ rConnection.prototype.getCommands = function(onready) {
         if (ajax.readyState == 4 && ajax.status == 200) {
             var obj = JSON.parse(ajax.responseText);
 
-            that.recvQueue = that.recvQueue.concat(obj.commands);
+            that.authQueue = that.authQueue.concat(obj.commands);
             onready();
         }
     });
@@ -293,6 +314,7 @@ rConnection.prototype.connectTo = function(id, color) {
                     conn.on("open", function() {
                         console.log('we are connected');
                         that._setupPeer(conn);
+                        that.recvQueue.addPlayer(color);
                         that.attribs.host = false;
                         that.host = conn;
 
@@ -318,10 +340,7 @@ rConnection.prototype.peerRecv = function(data) {
         console.log('[' + this.peerid + "] RECV: '", data, "'");
     }
 
-    // If we're the host, we need to add this data to the messaging queue.
-    // Otherwise, just to the recieving queue.
-    if (!this.attribs.host) this.recvQueue.push(data);
-    else                    this.hostQueue.pushMessage(data);
+    this.recvQueue.pushMessage(data);
 };
 
 rConnection.prototype.sendMessage = function(obj, peer) {
@@ -372,9 +391,20 @@ rConnection.prototype.addOrders = function(orders) {
     }
 
     if (this.attribs.host) {
-        this.hostQueue.pushMessage(orders);
+        this.recvQueue.pushMessage(orders);
     } else {
         this.sendMessage(orders, this.host);
     }
 };
 
+rConnection.prototype.getMessages = function(tick, color) {
+    if (!(tick in this.recvQueue.queue)) {
+        return [];
+    }
+
+    if (color === null || color === undefined) {
+        return this.recvQueue.queue[tick];
+    }
+
+    return this.recvQueue.queue[tick][color] || [];
+};

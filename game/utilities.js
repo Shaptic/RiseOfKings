@@ -41,11 +41,6 @@ function in_range(val, min, max) {
 }
 
 function getAlignedPos(pos) {
-    off = new vector(pos.x % TILE_SIZE,
-                     pos.y % TILE_SIZE);
-
-    return new vector(
-        pos.x + (off.x < TILE_SIZE ? -off.x : off.x),
-        pos.y + (off.y < TILE_SIZE ? -off.y : off.y)
-    );
+    return new vector(parseInt(pos.x / TILE_SIZE) * TILE_SIZE,
+                      parseInt(pos.y / TILE_SIZE) * TILE_SIZE);
 }

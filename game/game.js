@@ -119,39 +119,6 @@ Game.prototype.gameLoop = function() {
         this.selectionQuad = new zogl.zQuad();
         this.setupEventHandlers();
 
-        this.socket.onRecv = function(msg) {
-            if (msg.misc === "complete") {
-                return;
-            }
-
-            console.log("Processing", msg);
-
-            for (var i in that.otherPlayers) {
-                var group = new rSquad(that.map);
-
-                if (that.otherPlayers[i].color !== msg.color &&
-                    that.player.color          !== msg.color) continue;
-
-                var p = (that.otherPlayers[i].color === msg.color) ?
-                         that.otherPlayers[i] : that.player;
-
-                var units = [];
-                for (var j in msg.units) {
-                    for (var k in p.units) {
-                        if (p.units[k].id === msg.units[j]) {
-                            units.push(p.units[k]);
-                        }
-                    }
-                }
-
-                console.log("Giving order to", p.color, msg.orders);
-
-                group.assignUnits(units);
-                group.giveOrders(msg.orders);
-                p.groups.push(group);
-            }
-        }
-
         this.state = GameState.PLAYING;
         clearInterval(this.intervalHandle);
         requestAnimationFrame(function() {
@@ -170,6 +137,61 @@ Game.prototype.gameLoop = function() {
         if (this.execTick < 0) {
             console.log(this.socket.sendTick);
             break;
+        }
+
+        console.log("executing commands for", this.execTick);
+
+        var playerCmds = this.socket.getMessages(this.execTick);
+        for (var i in playerCmds) {
+            var msgs = playerCmds[i];
+            if (msgs.length === 0) {
+                continue;
+            }
+
+            if (msgs.length === 1 && msgs[0].misc === "complete") {
+                continue;
+            }
+
+            // Figure out which player this set of commands is relevant to.
+            var p = this.player;
+            if (this.player.color !== msgs[0].color) {
+                for (var j in this.otherPlayers) {
+                    if (this.otherPlayers[j].color !== msgs[0].color) {
+                        continue;
+                    }
+
+                    p = this.otherPlayers[j];
+                    break;
+                }
+            }
+
+            for (var j in msgs) {
+                var msg = msgs[j];
+                console.log("Processing", msg);
+
+                var units = [];
+                for (var j in msg.units) {
+                    for (var k in p.units) {
+                        if (p.units[k].id === msg.units[j]) {
+                            units.push(p.units[k]);
+                        }
+                    }
+                }
+
+                console.log("Giving order to", p.color, msg.orders);
+
+                var group = new rSquad(this.map);
+                group.assignUnits(units);
+                group.giveOrders(msg.orders);
+                p.groups.push(group);
+            }
+
+            this.socket.recvQueue.queue[this.execTick][i] = [];
+        }
+
+        // TODO: fn call
+        if (this.execTick in this.socket.recvQueue.queue) {
+            this.socket.recvQueue.queue[this.execTick][this.player.color] = [];
         }
 
         this.window.clear('#000000');
