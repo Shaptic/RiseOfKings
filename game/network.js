@@ -183,8 +183,6 @@ rConnection.prototype.update = function() {
                     for (var k in msgs[j]) {    // For every message
                         this.sendMessage(msgs[j][k]);
                     }
-
-                    msgs[j] = [];
                 }
 
                 // Handle misc. messages from clients. Army composition
@@ -242,7 +240,7 @@ rConnection.prototype.update = function() {
             }
 
             if (this.getMessages(this.sendTick, this.color).length !== 0) {
-                console.log("Server says we are ready, tick", this.sendTick, "is complete.");
+                console.log("server says, tick", this.sendTick, "is complete.");
                 this.sendTick++;
             }
 
@@ -250,17 +248,11 @@ rConnection.prototype.update = function() {
 
             // Tell the host there is no data for this turn from us.
             if (this.sendQueue.length === 0) {
-                console.log("Sending empty message for tick", this.sendTick);
                 this.sendMessage({
                     "color": this.color,
                     "turn": this.sendTick,
                     "misc": "complete"
                 });
-
-            } else {
-                for (var i in this.sendQueue) {
-                    this.sendMessage(this.sendQueue[i], this.host);
-                }
             }
 
             this.sendQueue = [];
@@ -394,6 +386,7 @@ rConnection.prototype.addOrders = function(orders) {
         this.recvQueue.pushMessage(orders);
     } else {
         this.sendMessage(orders, this.host);
+        this.sendQueue.push(orders);
     }
 };
 

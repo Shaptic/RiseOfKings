@@ -213,7 +213,8 @@ rPlayer.prototype.handleEvent = function(evt) {
                 "misc": (order.type + " order")
             };
 
-            console.log("Adding", order.type, "order");
+            console.log("Adding", order.type, "order to tick",
+                        this.socket.sendTick);
             this.socket.addOrders(sockOrder);
         }
     }
