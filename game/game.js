@@ -139,8 +139,6 @@ Game.prototype.gameLoop = function() {
             break;
         }
 
-        console.log("executing commands for", this.execTick);
-
         var playerCmds = this.socket.getMessages(this.execTick);
         for (var i in playerCmds) {
             var msgs = playerCmds[i];
@@ -148,8 +146,17 @@ Game.prototype.gameLoop = function() {
                 continue;
             }
 
-            if (msgs.length === 1 && msgs[0].misc === "complete") {
-                continue;
+            if (msgs.length >= 1) {
+                skip = false;
+                for (var j in msgs) {
+                    if (msgs[j].misc === "complete") {
+                        console.log('skipping', i, 'for', this.execTick, msgs);
+                        skip = true;
+                        break;
+                    }
+                }
+
+                if (skip) continue;
             }
 
             // Figure out which player this set of commands is relevant to.
