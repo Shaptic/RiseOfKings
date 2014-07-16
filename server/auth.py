@@ -6,10 +6,10 @@ app = Flask(__name__)
 gamePeers = []
 
 AVAILABLE_COLORS = {
-    'blue': True,
-    'red': True,
-    'green': True,
-    'yellow': True
+    'blue':     True,
+    'red':      True,
+    'green':    True,
+    'yellow':   True
 }
 
 class Peer:
@@ -22,9 +22,9 @@ class Peer:
 
     def asJSON(self):
         return {
-            'id': self.id,
-            'color': self.color,
-            'name': self.name
+            'id':       self.id,
+            'color':    self.color,
+            'name':     self.name
         }
 
 @app.route('/register/<peer_id>')

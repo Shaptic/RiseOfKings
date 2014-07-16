@@ -35,16 +35,16 @@ rPathfinder.prototype.findPath = function(start, end, exclude, stop_dist) {
     function getNeighbors(node) {
         var n = [];
 
-        n.push(that.map.getTileAt(node.x - TILE_SIZE, node.y - TILE_SIZE));
-        n.push(that.map.getTileAt(node.x, node.y - TILE_SIZE));
-        n.push(that.map.getTileAt(node.x + TILE_SIZE, node.y - TILE_SIZE));
+        n.push(that.map.getTileAt(node.x - TILE_SIZE,   node.y - TILE_SIZE));
+        n.push(that.map.getTileAt(node.x,               node.y - TILE_SIZE));
+        n.push(that.map.getTileAt(node.x + TILE_SIZE,   node.y - TILE_SIZE));
 
-        n.push(that.map.getTileAt(node.x - TILE_SIZE, node.y));
-        n.push(that.map.getTileAt(node.x + TILE_SIZE, node.y));
+        n.push(that.map.getTileAt(node.x - TILE_SIZE,   node.y));
+        n.push(that.map.getTileAt(node.x + TILE_SIZE,   node.y));
 
-        n.push(that.map.getTileAt(node.x - TILE_SIZE, node.y + TILE_SIZE));
-        n.push(that.map.getTileAt(node.x, node.y + TILE_SIZE));
-        n.push(that.map.getTileAt(node.x + TILE_SIZE, node.y + TILE_SIZE));
+        n.push(that.map.getTileAt(node.x - TILE_SIZE,   node.y + TILE_SIZE));
+        n.push(that.map.getTileAt(node.x,               node.y + TILE_SIZE));
+        n.push(that.map.getTileAt(node.x + TILE_SIZE,   node.y + TILE_SIZE));
 
         return n.filter(function(e) { return e !== null; });
     }
