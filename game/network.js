@@ -1,12 +1,9 @@
+// host didnt execute own command
 var RTS_CONFIG = {
     "PEER_API_KEY": "lwjd5qra8257b9",
     "AUTH_SERVER": "http://localhost:5000",
     "NETWORK_FPS": 30
 };
-
-var available_colors = [
-    "blue", "red", "yellow"
-]
 
 function AJAX(requestType, requestURL, callback) {
     callback = callback || function() {};
@@ -155,11 +152,8 @@ rConnection.prototype.update = function() {
                     "turn": this.sendTick,
                     "misc": "complete"
                 })
-            } else {
-                for (var i in this.sendQueue) {
-                    this.recvQueue.pushMessage(this.sendQueue[i]);
-                }
             }
+            this.sendQueue = [];
 
             // Process the current buffers to see if everyone has sent their
             // data for this turn.
@@ -181,6 +175,9 @@ rConnection.prototype.update = function() {
                 console.log(this.sendTick, 'is ready, broadcasting', msgs);
                 for (var j in msgs) {           // For every color
                     for (var k in msgs[j]) {    // For every message
+                        // Validation here
+
+                        // Send to all peers
                         this.sendMessage(msgs[j][k]);
                     }
                 }
@@ -254,7 +251,6 @@ rConnection.prototype.update = function() {
                     "misc": "complete"
                 });
             }
-
             this.sendQueue = [];
         }
 
@@ -343,6 +339,8 @@ rConnection.prototype.sendMessage = function(obj, peer) {
             console.log('[' + this.peerid + "] SEND: '", obj, "'");
         }
 
+        this.sendQueue.push(obj);
+
         if (peer === null || peer === undefined || peer === "all") {
             for (var i in this.peers) {
                 this.peers[i].send(obj);
@@ -351,7 +349,7 @@ rConnection.prototype.sendMessage = function(obj, peer) {
             peer.send(obj);
         }
     } else {
-        throw('bad msg')
+        throw('bad msg');
     }
 };
 
@@ -366,7 +364,7 @@ rConnection.prototype._setupPeer = function(conn) {
     clearInterval(this.intervalHandle);
     this.intervalHandle = setInterval(function() {
         that.update();
-    }, 1000 / .333);//RTS_CONFIG.NETWORK_FPS);
+    }, 1000 / RTS_CONFIG.NETWORK_FPS);
 
     conn.on("data", function(d) {
         that.peerRecv(d);
