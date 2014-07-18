@@ -88,8 +88,13 @@ rCommandQueue.prototype.pushMessage = function(msg) {
 
             this.queue[msg.turn][msg.color] = [msg];
 
+        // Existing turn but new color.
+        } else if (!(msg.color in this.queue[msg.turn])) {
+            this.addPlayer(msg.color);
+            this.queue[msg.turn][msg.color].push(msg);
+
         // Existing turn.
-        } else {
+        } else { 
             this.queue[msg.turn][msg.color].push(msg);
         }
 

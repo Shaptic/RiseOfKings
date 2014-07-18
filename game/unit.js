@@ -46,11 +46,12 @@ function rUnit(scene, type) {
     // Create our sprites.
     console.log('Loading unit of type', type);
     var tx = new zogl.zTexture();
-    tx.loadFromFile(type + ".png");
-
     var that = this;
     var q = new zogl.zQuad();
+
     tx.setOnload(function() {
+        console.log("texture loaded");
+        
         q.resize(tx.size.w, tx.size.h);
         q.attachTexture(tx);
         q.create();
@@ -62,6 +63,7 @@ function rUnit(scene, type) {
         that.healthBar.move(that.getX(), that.getY() - 3);
         that.healthBar.enabled = false;
     });
+    tx.loadFromFile(type + ".png");
 
     this.orders = [];
     this.projectiles = [];

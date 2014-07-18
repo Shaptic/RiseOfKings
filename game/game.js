@@ -28,7 +28,7 @@ var GameState = {
 };
 
 function Game() {
-    zogl.debug = false;
+    //zogl.debug = false;
 
     var that = this;
 
@@ -48,8 +48,6 @@ function Game() {
     this.otherPlayers = [];
 
     this.armyComposition = [];
-
-    this.execTick = 0;
 
     this.intervalHandle = setInterval(function() {
         that.gameLoop();
@@ -132,14 +130,7 @@ Game.prototype.gameLoop = function() {
             that.gameLoop();
         }, glGlobals.canvas);
 
-        this.execTick = this.socket.sendTick - 3;
-
-        if (this.execTick < 0) {
-            console.log(this.socket.sendTick);
-            break;
-        }
-
-        var playerCmds = this.socket.getMessages(this.execTick);
+        var playerCmds = this.socket.getMessages(this.socket.sendTick);
         for (var i in playerCmds) {
             var msgs = playerCmds[i];
             if (msgs.length === 0) {
@@ -159,7 +150,7 @@ Game.prototype.gameLoop = function() {
                 }
             }
 
-            for (var j in msgs) {
+            for (var j = msgs.length - 1; j >= 0; --j) {
                 var msg = msgs[j];
                 if (msg.misc === "complete") continue;
 
@@ -180,14 +171,21 @@ Game.prototype.gameLoop = function() {
                 group.assignUnits(units);
                 group.giveOrders(msg.orders);
                 p.groups.push(group);
-            }
 
-            this.socket.recvQueue.queue[this.execTick][i] = [];
+                msgs.splice(j, 1);
+            }
+        }
+
+        // Delete all but the last 10 turns.
+        for (var tick in this.socket.recvQueue.queue) {
+            if (tick <= this.socket.sendQueue - 10) {
+                delete this.socket.recvQueue.queue[tick];
+            }
         }
 
         // TODO: fn call
-        if (this.execTick in this.socket.recvQueue.queue) {
-            this.socket.recvQueue.queue[this.execTick][this.player.color] = [];
+        if (this.socket.sendTick in this.socket.recvQueue.queue) {
+            //this.socket.recvQueue.queue[this.socket.sendTick][this.player.color] = [];
         }
 
         this.window.clear('#000000');
@@ -273,7 +271,6 @@ function initializeGame(army, socket) {
     var gameMap = new rMap(scene);
     var player  = new rPlayer(gameMap, sock.color, sock);
     var enemies = new Array(sock.peers.length - 1);
-    var execTick= sock.sendTick - 3;
 
     var units = new Array(army_composition.length);
     for (var i in army_composition[sock.color]) {
@@ -329,7 +326,7 @@ function initializeGame(army, socket) {
     var selectionQuad = new zogl.zQuad();
 
     var gameLoop = function() {
-        execTick = sock.sendTick - 3;
+        socket.sendTick = sock.sendTick - 3;
 
         w.clear('#000000');
 

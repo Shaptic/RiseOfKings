@@ -1,7 +1,7 @@
 // host didnt execute own command
 var RTS_CONFIG = {
     "PEER_API_KEY": "lwjd5qra8257b9",
-    "AUTH_SERVER": "http://localhost:5000",
+    "AUTH_SERVER": "http://108.195.186.66:5000",
     "NETWORK_FPS": 30
 };
 
@@ -66,8 +66,6 @@ function rConnection(army) {
     this.recvQueue  = new rCommandQueue();
 
     this.authQueue  = [];   // List of messages from the authorization server
-    this.sendQueue  = [];   // List of messages to send to the host for broadcast
-
     this.sendTick   = 1;    // The current network tick. It represents the exact
                             // tick that we are currently issuing commands for
                             // (player input) and we are executing commands 2
@@ -80,6 +78,7 @@ function rConnection(army) {
     this.peerid     = null; // Internal peer.js identifier.
 
     this.host       = null; // A connection object to the host.
+    this.lag_comp   = 3;
 
     // A handle on the current tick loop, which is adjusted post-connection
     // to match a consistent network tick-rate.
@@ -146,14 +145,13 @@ rConnection.prototype.update = function() {
         if (this.attribs.host) {
 
             // First, let's handle the "sending" of our own data.
-            if (this.sendQueue.length === 0) {
-                this.recvQueue.pushMessage({
-                    "color": this.color,
-                    "turn": this.sendTick,
-                    "misc": "complete"
-                })
-            }
-            this.sendQueue = [];
+            var done = {
+                "color": this.color,
+                "turn": this.sendTick,
+                "misc": "complete"
+            };
+
+            this.recvQueue.pushMessage(done);
 
             // Process the current buffers to see if everyone has sent their
             // data for this turn.
@@ -165,7 +163,8 @@ rConnection.prototype.update = function() {
 
             for (var i in msgs) {
                 if (msgs[i].length === 0) {
-                    console.log('Turn', this.sendTick, 'not ready, waiting on', i);
+                    console.log('[HOST] Turn', this.sendTick,
+                                'not ready, waiting on', i);
                     noop = true;
                 }
             }
@@ -177,8 +176,6 @@ rConnection.prototype.update = function() {
                     for (var k in msgs[j]) {    // For every message
                         // Validation here
 
-                        // Send to all peers
-                        this.sendMessage(msgs[j][k]);
                     }
                 }
 
@@ -203,6 +200,7 @@ rConnection.prototype.update = function() {
                     }
                 }
 
+                this.sendMessage(done);
                 this.sendTick++;
             }
 
@@ -236,22 +234,33 @@ rConnection.prototype.update = function() {
                 }
             }
 
-            if (this.getMessages(this.sendTick, this.color).length !== 0) {
-                console.log("server says, tick", this.sendTick, "is complete.");
+            // Validate that we've received "complete"s for every player.
+            var complete = true;
+            if (!(this.sendTick in this.recvQueue.queue)) {
+                console.log('queue is empty for', this.sendTick);
+                complete = false;
+            }
+
+            var msgs = this.recvQueue.queue[this.sendTick] || [];
+            for (var i in msgs) {
+                if (msgs[i].length === 0) {
+                    console.log('[PEER] Turn', this.sendTick,
+                                'not ready, waiting on', i);
+                    complete = false;
+                }
+            }
+
+            if (complete) {
+                console.log(this.sendTick, "done");
                 this.sendTick++;
             }
 
-            // Send everything that the player has done during this turn.
-
-            // Tell the host there is no data for this turn from us.
-            if (this.sendQueue.length === 0) {
-                this.sendMessage({
-                    "color": this.color,
-                    "turn": this.sendTick,
-                    "misc": "complete"
-                });
-            }
-            this.sendQueue = [];
+            // We're done with this turn.
+            this.sendMessage({
+                "color": this.color,
+                "turn": this.sendTick,
+                "misc": "complete"
+            });
         }
 
     /*
@@ -324,22 +333,32 @@ rConnection.prototype.connectTo = function(id, color) {
 };
 
 rConnection.prototype.peerRecv = function(data) {
+    if (data.color === this.color) {
+        var now = Date.now();
+        console.log('round trip time:', now - data.timestamp,
+                    (now - data.timestamp) / 2);
+    }
+
+
     if (zogl.debug) {
         console.log('[' + this.peerid + "] RECV: '", data, "'");
     }
 
     this.recvQueue.pushMessage(data);
+
+    if (this.attribs.host) {
+        this.sendMessage(data);
+    }
 };
 
 rConnection.prototype.sendMessage = function(obj, peer) {
     var msg = new rMessage(obj);
     if (msg.isValid()) {
+        obj.timestamp = Date.now();
 
         if (zogl.debug) {
             console.log('[' + this.peerid + "] SEND: '", obj, "'");
         }
-
-        this.sendQueue.push(obj);
 
         if (peer === null || peer === undefined || peer === "all") {
             for (var i in this.peers) {
@@ -380,11 +399,13 @@ rConnection.prototype.addOrders = function(orders) {
         return;
     }
 
+    orders.turn += this.lag_comp;
+
     if (this.attribs.host) {
         this.recvQueue.pushMessage(orders);
+        this.sendMessage(orders);
     } else {
         this.sendMessage(orders, this.host);
-        this.sendQueue.push(orders);
     }
 };
 
