@@ -35,6 +35,7 @@ function rMessage(obj) {
     obj.units  = obj.units || [];
     obj.orders = obj.orders || [];
     obj.misc   = obj.misc || "";
+    obj.ping   = obj.ping || 0;
 
     if (this.valid) {
         this.color = obj.color;
@@ -42,6 +43,7 @@ function rMessage(obj) {
         this.orders = obj.orders;
         this.turn = obj.turn;
         this.misc = obj.misc;
+        this.ping = obj.ping;
     }
 }
 
@@ -94,7 +96,7 @@ rCommandQueue.prototype.pushMessage = function(msg) {
             this.queue[msg.turn][msg.color].push(msg);
 
         // Existing turn.
-        } else { 
+        } else {
             this.queue[msg.turn][msg.color].push(msg);
         }
 

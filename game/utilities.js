@@ -11,6 +11,19 @@ var COLORS = {
     "yellow":   '(1.0, 1.0, 0.0, 0.0)'
 };
 
+window.performance = window.performance || {};
+performance.now = (function() {
+  return performance.now       ||
+         performance.mozNow    ||
+         performance.msNow     ||
+         performance.oNow      ||
+         performance.webkitNow ||
+         function() {
+            var d = new Date();
+            return d.now() || d.getTime();
+        };
+})();
+
 function createGrid(units, position) {
     var w = (units.length <= 4) ? units.length : Math.ceil(Math.sqrt(units.length));
     var h = units.length / w;

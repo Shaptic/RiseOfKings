@@ -28,7 +28,7 @@ var GameState = {
 };
 
 function Game() {
-    //zogl.debug = false;
+    zogl.debug = false;
 
     var that = this;
 
@@ -49,9 +49,20 @@ function Game() {
 
     this.armyComposition = [];
 
+    this.execDelay = {
+        "count": 0,
+        "on": false
+    };
+
+    this.setStatus("waiting for connections...");
+
     this.intervalHandle = setInterval(function() {
         that.gameLoop();
     }, 500);
+
+    requestAnimationFrame(function() {
+        that.render();
+    }, glGlobals.canvas);
 
     var sockHandle = setInterval(function() {
         that.socket.update();
@@ -70,6 +81,7 @@ Game.prototype.gameLoop = function() {
             this.socket.host !== null    ||
             this.socket.attribs.host     ||
             this.socket.attribs.singleplayer) {
+            this.setStatus("synchronizing...");
             this.state = GameState.WAITING_FOR_ARMY;
         }
         break;
@@ -81,6 +93,7 @@ Game.prototype.gameLoop = function() {
              this.socket.armyComposition.length === this.socket.peers.length + 1) ||
             this.socket.attribs.singleplayer) {
             this.armyComposition = this.socket.armyComposition;
+            this.setStatus("loading game...");
             this.state = GameState.READY;
         }
         break;
@@ -88,7 +101,9 @@ Game.prototype.gameLoop = function() {
     case GameState.READY:
         var that = this;
 
+        this.setStatus("loading game... map");
         this.map.create();
+        this.setStatus("loading game... armies");
 
         var c = this.socket.color;
         for (var i in this.armyComposition) {
@@ -118,77 +133,133 @@ Game.prototype.gameLoop = function() {
         this.setupEventHandlers();
 
         this.state = GameState.PLAYING;
+
         clearInterval(this.intervalHandle);
+        this.intervalHandle = setInterval(function() {
+            that.update();
+        }, 1000 / 60);
+
         requestAnimationFrame(function() {
-            that.gameLoop();
+            that.render();
         }, glGlobals.canvas);
-        this.gameLoop();
+        break;
+    }
+};
+
+Game.prototype.update = function() {
+    var playerCmds = this.socket.getMessages(this.socket.sendTick);
+    for (var i in playerCmds) {
+        var msgs = playerCmds[i];
+        if (msgs.length === 0) {
+            return;
+        }
+
+        // Only simulate once we've received "done" commands for all players.
+        has_done = false;
+        for (var j in msgs) {
+            if (msgs[j].misc === "complete") {
+                has_done = true;
+                break;
+            }
+        }
+
+        if (!has_done) {
+            console.log("no acks for all clients");
+            return;
+        }
+
+        else if (!this.execDelay.on) {
+            this.execDelay = {
+                "count": this.socket.roundtrip / 2,
+                "on": true
+            };
+        }
+
+        else {
+            this.execDelay.count--;
+        }
+
+        if (this.execDelay.count <= 0) {
+            this.execDelay.count = 0;
+            this.execDelay.on = false;
+        } else {
+            return;
+        }
+
+        // Figure out which player this set of commands is relevant to.
+        var p = this.player;
+        if (this.player.color !== msgs[0].color) {
+            for (var j in this.otherPlayers) {
+                if (this.otherPlayers[j].color !== msgs[0].color) {
+                    continue;
+                }
+
+                p = this.otherPlayers[j];
+                break;
+            }
+        }
+
+        for (var j = msgs.length - 1; j >= 0; --j) {
+            var msg = msgs[j];
+            if (msg.misc === "complete") continue;
+
+            console.log("Processing", msg);
+
+            var units = [];
+            for (var j in msg.units) {
+                for (var k in p.units) {
+                    if (p.units[k].id === msg.units[j]) {
+                        units.push(p.units[k]);
+                    }
+                }
+            }
+
+            console.log("Giving order to", p.color, msg.orders);
+
+            var group = new rSquad(this.map);
+            group.assignUnits(units);
+            group.giveOrders(msg.orders);
+            p.groups.push(group);
+
+            msgs.splice(j, 1);
+        }
+    }
+
+    // Delete all but the last 10 turns.
+    for (var tick in this.socket.recvQueue.queue) {
+        if (tick <= this.socket.sendQueue - 10) {
+            delete this.socket.recvQueue.queue[tick];
+        }
+    }
+}
+
+Game.prototype.render = function() {
+    var that = this;
+
+    requestAnimationFrame(function() {
+        that.render();
+    }, glGlobals.canvas);
+
+    this.window.clear('#000000');
+
+    switch(this.state) {
+
+    case GameState.WAITING_FOR_PEERS:
+        this.statusText.draw();
+        break;
+
+    case GameState.WAITING_FOR_ARMY:
+        this.statusText.draw();
         break;
 
     case GameState.PLAYING:
-        requestAnimationFrame(function() {
-            that.gameLoop();
-        }, glGlobals.canvas);
-
-        var playerCmds = this.socket.getMessages(this.socket.sendTick);
-        for (var i in playerCmds) {
-            var msgs = playerCmds[i];
-            if (msgs.length === 0) {
-                continue;
-            }
-
-            // Figure out which player this set of commands is relevant to.
-            var p = this.player;
-            if (this.player.color !== msgs[0].color) {
-                for (var j in this.otherPlayers) {
-                    if (this.otherPlayers[j].color !== msgs[0].color) {
-                        continue;
-                    }
-
-                    p = this.otherPlayers[j];
-                    break;
-                }
-            }
-
-            for (var j = msgs.length - 1; j >= 0; --j) {
-                var msg = msgs[j];
-                if (msg.misc === "complete") continue;
-
-                console.log("Processing", msg);
-
-                var units = [];
-                for (var j in msg.units) {
-                    for (var k in p.units) {
-                        if (p.units[k].id === msg.units[j]) {
-                            units.push(p.units[k]);
-                        }
-                    }
-                }
-
-                console.log("Giving order to", p.color, msg.orders);
-
-                var group = new rSquad(this.map);
-                group.assignUnits(units);
-                group.giveOrders(msg.orders);
-                p.groups.push(group);
-
-                msgs.splice(j, 1);
-            }
+        if (this.socket.roundtrip !== undefined) {
+            this.setStatus(
+                'Ping: ' +
+                this.socket.roundtrip.toFixed(2) +
+                'ms'
+            );
         }
-
-        // Delete all but the last 10 turns.
-        for (var tick in this.socket.recvQueue.queue) {
-            if (tick <= this.socket.sendQueue - 10) {
-                delete this.socket.recvQueue.queue[tick];
-            }
-        }
-
-        // TODO: fn call
-        if (this.socket.sendTick in this.socket.recvQueue.queue) {
-            //this.socket.recvQueue.queue[this.socket.sendTick][this.player.color] = [];
-        }
-
-        this.window.clear('#000000');
 
         this.player.update();
         for (var i in this.otherPlayers) {
@@ -208,9 +279,11 @@ Game.prototype.gameLoop = function() {
             gl.disable(gl.BLEND);
         }
 
+        this.statusText.draw();
+
         break;
     }
-};
+}
 
 Game.prototype.setupEventHandlers = function() {
     var that = this;
@@ -239,7 +312,26 @@ Game.prototype.setupEventHandlers = function() {
 
     }, false);
     glGlobals.canvas.addEventListener("mouseout",  playerEventHandler, false);
+};
 
+Game.prototype.setStatus = function(message) {
+    if (this.statusText === undefined) {
+        this.statusFont = new zogl.zFont();
+        this.statusFont.loadFromFile('monospace', 10);
+        this.statusFont.color = 'white';
+
+        this.statusText = new zogl.zSprite();
+        this.statusText.flags.blend = true;
+
+    } else {
+        this.statusText.prims = [];
+    }
+
+    this.statusFont.drawOnSprite(message, this.statusText);
+    this.statusText.move(
+        glGlobals.canvas.width  - this.statusText.rect.w,
+        glGlobals.canvas.height - this.statusText.rect.h
+    );
 };
 
 function refreshLobby() {

@@ -1,8 +1,8 @@
 // host didnt execute own command
 var RTS_CONFIG = {
-    "PEER_API_KEY": "lwjd5qra8257b9",
-    "AUTH_SERVER": "http://108.195.186.66:5000",
-    "NETWORK_FPS": 30
+    "PEER_API_KEY": "liwkv44lmew89f6r",
+    "AUTH_SERVER": "http://localhost:5000",
+    "NETWORK_FPS": 5
 };
 
 function AJAX(requestType, requestURL, callback) {
@@ -65,6 +65,7 @@ function rConnection(army) {
     // For the host, this contains turn data for all players.
     this.recvQueue  = new rCommandQueue();
 
+    this.peers      = [];   // A list of connected clients in the game
     this.authQueue  = [];   // List of messages from the authorization server
     this.sendTick   = 1;    // The current network tick. It represents the exact
                             // tick that we are currently issuing commands for
@@ -83,9 +84,6 @@ function rConnection(army) {
     // A handle on the current tick loop, which is adjusted post-connection
     // to match a consistent network tick-rate.
     this.intervalHandle = null;
-
-    // HOST ONLY
-    this.peers      = [];   // A list of connected clients in the game
 
     this.socket.on("connection", function(conn) {
         if (!that.attribs.open) throw('wat');
@@ -174,8 +172,15 @@ rConnection.prototype.update = function() {
                 console.log(this.sendTick, 'is ready, broadcasting', msgs);
                 for (var j in msgs) {           // For every color
                     for (var k in msgs[j]) {    // For every message
-                        // Validation here
 
+                        // Calculate ping to client
+                        if (msgs[j][k].ping !== 0) {
+                            this.roundtrip = msgs[j][k].ping;
+                        }
+
+                        //
+                        // Validation here.
+                        //
                     }
                 }
 
@@ -259,7 +264,8 @@ rConnection.prototype.update = function() {
             this.sendMessage({
                 "color": this.color,
                 "turn": this.sendTick,
-                "misc": "complete"
+                "misc": "complete",
+                "ping": this.roundtrip
             });
         }
 
@@ -333,13 +339,6 @@ rConnection.prototype.connectTo = function(id, color) {
 };
 
 rConnection.prototype.peerRecv = function(data) {
-    if (data.color === this.color) {
-        var now = Date.now();
-        console.log('round trip time:', now - data.timestamp,
-                    (now - data.timestamp) / 2);
-    }
-
-
     if (zogl.debug) {
         console.log('[' + this.peerid + "] RECV: '", data, "'");
     }
@@ -348,19 +347,30 @@ rConnection.prototype.peerRecv = function(data) {
 
     if (this.attribs.host) {
         this.sendMessage(data);
+
+    // Peers do roundtrip time calculation.
+    } else if (data.color === this.color &&
+               this.sendTick === data.turn) {
+
+        var now = window.performance.now();
+        this.roundtrip = now - data.timestamp;
     }
 };
 
 rConnection.prototype.sendMessage = function(obj, peer) {
     var msg = new rMessage(obj);
     if (msg.isValid()) {
-        obj.timestamp = Date.now();
+
+        // Only attach timestamp when the message being sent is our own.
+        if (obj.color === this.color) {
+            obj.timestamp = window.performance.now();
+        }
 
         if (zogl.debug) {
             console.log('[' + this.peerid + "] SEND: '", obj, "'");
         }
 
-        if (peer === null || peer === undefined || peer === "all") {
+        if (!peer) {
             for (var i in this.peers) {
                 this.peers[i].send(obj);
             }
