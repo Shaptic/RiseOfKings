@@ -12,7 +12,6 @@ rMap.prototype.create = function() {
     var tx = new zogl.zTexture();
     var that = this;
 
-    tx.loadFromFile("grass.png");
     tx.setOnload(function() {
         q.attachTexture(tx);
         q.attribs.repeat = true;
@@ -21,6 +20,7 @@ rMap.prototype.create = function() {
         grass.addObject(q);
         that.goodTerrain.push(grass);
     });
+    tx.loadFromFile("grass.png");
 
     for (var x = 0; x < WINDOW_SIZE.w; x += TILE_SIZE) {
         this.grid[x] = {};
