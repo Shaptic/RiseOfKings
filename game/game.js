@@ -66,8 +66,10 @@ function Game() {
         "interval": 1000.0 / 60
     };
 
-    this.accurateInterval = function() {
+    this.accurateInterval = function(callback) {
         that.timer.time += that.timer.interval;
+
+        callback();
 
         var diff = (window.performance.now() - that.timer.start) - that.timer.time;
         setTimeout(that.accurateInterval, that.timer.interval - diff);
@@ -99,14 +101,18 @@ Game.prototype.gameLoop = function() {
                     "type": MessageType.ARMY_COMPOSITION,
                     "misc": "army_comp",
                     "turn": that.socket.sendTick,
-                    "misc": that.socket.armyComposition[that.socket.color] || {}
+                    "misc": that.socket.initialArmyComp
                 }, that.host)
             }, 500);
         }
 
         var count = 0;
         for (var color in this.socket.armyComposition) {
-            count++;
+            if (this.socket.armyComposition[color].length > 0) {
+                count++;
+            } else {
+                console.log("No composition for", color, "yet.");
+            }
         }
 
         if ((count > 1 && count === this.socket.peers.length + 1) ||
@@ -126,7 +132,7 @@ Game.prototype.gameLoop = function() {
 
         var c = this.socket.color;
         for (var i in this.armyComposition) {
-            var list = this.armyComposition[i].units;
+            var list = this.armyComposition[i];
             var units = [];
 
             for (var j in list) {
@@ -139,10 +145,10 @@ Game.prototype.gameLoop = function() {
                 units.push(u);
             }
 
-            if (this.armyComposition[i].color === c) {
+            if (i === c) {
                 this.player.setUnits(units);
             } else {
-                var p = new rPlayer(this.map, this.armyComposition[i].color);
+                var p = new rPlayer(this.map, i);
                 p.setUnits(units);
                 this.otherPlayers.push(p);
             }
@@ -153,15 +159,18 @@ Game.prototype.gameLoop = function() {
 
         this.state = GameState.PLAYING;
 
+        clearInterval(this.intervalHandle);
+
         requestAnimationFrame(function() {
             that.render();
         }, glGlobals.canvas);
         break;
 
     case GameState.PLAYING:
-        setTimeout(function() {
-            that.accurateInterval();
-        }, this.timer.interval);
+        this.update();
+        setTimeout(this.accurateInterval.bind(this, function() {
+            that.gameLoop();
+        }), this.timer.interval);
     }
 };
 

@@ -49,15 +49,17 @@ function rUnit(scene, type) {
     var that = this;
     var q = new zogl.zQuad();
 
+    this.healthBar = new zogl.zQuad();
+
     tx.setOnload(function() {
         console.log("texture loaded");
-        
+
         q.resize(tx.size.w, tx.size.h);
         q.attachTexture(tx);
         q.create();
         that.addObject(q);
 
-        that.healthBar = new zogl.zQuad(tx.size.w, 2);
+        that.healthBar.resize(tx.size.w, 2);
         that.healthBar.setColor("#00FF00");
         that.healthBar.create();
         that.healthBar.move(that.getX(), that.getY() - 3);

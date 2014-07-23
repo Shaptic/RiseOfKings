@@ -65,6 +65,7 @@ function rConnection(army) {
     // Contains the army composition for every connected player.
     // This is used to start the initial game state.
     this.armyComposition = {};
+    this.initialArmyComp = army.units || [];
 
     // List of messages for client to execute
     // For the host, this contains turn data for all players.
@@ -136,7 +137,7 @@ rConnection.prototype.update = function() {
                 var msg = this.recvQueue.queue["misc"][i];
 
                 if (msg.type === MessageType.ARMY_COMPOSITION) {
-                    this.armyComposition[msg.color] = msg.misc.units || [];
+                    this.armyComposition[msg.color] = msg.misc || [];
                     this.sendMessage({
                         "type": MessageType.ARMY_COMPOSITION,
                         "color": this.color,
@@ -257,8 +258,6 @@ rConnection.prototype.onRecv = function(data) {
 
             console.log("Next turn:", this.sendTick);
 
-        } else {
-            console.log(this.sendTick, "is not ready, waiting for", color);
         }
     }
 };
