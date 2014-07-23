@@ -187,7 +187,7 @@ rConnection.prototype.onRecv = function(data) {
     if (this.attribs.host) {
         if (data.color !== this.color) {
             this.sendMessage(data);
-            //this._calculateLatency();
+            this._calculateLatency();
         } else {
             this.recvQueue.pushMessage(data);
         }
@@ -201,9 +201,12 @@ rConnection.prototype.onRecv = function(data) {
     }
 
     // Determine whether or not we can now increase the current network turn.
-    if (data.type === MessageType.DONE) {
-        var msgs = this.getMessages(data.turn);
+    if (data.turn === this.sendTick && data.type === MessageType.DONE) {
+        var done = false;
+
+        var msgs = this.getMessages(this.sendTick);
         for (var color in msgs) {
+            done = false;
             for (var i in msgs[color]) {
                 var msg = msgs[color][i];
 
@@ -212,6 +215,12 @@ rConnection.prototype.onRecv = function(data) {
                     break;
                 }
             }
+
+            if (!done) break;
+        }
+
+        if (done) {
+            this.sendTick++;
         }
     }
 };
@@ -257,6 +266,17 @@ rConnection.prototype._calculateLatency = function() {
     this.intervalHandle = setInterval(function() {
         that.update();
     }, this.iterDelay);
+
+    var latency = 0;
+    var msgs = this.turnArchive.queue[this.sendTick - 1] || {};
+    for (var color in msgs) {
+        for (var i in msgs[color]) {
+            latency = Math.max(latency, msgs[color][i].ping);
+        }
+    }
+
+    this.roundtrip = latency;
+    this.iterDelay = this.roundtrip + 50;
 };
 
 rConnection.prototype._setupPeer = function(conn) {

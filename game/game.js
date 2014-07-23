@@ -99,7 +99,7 @@ Game.prototype.gameLoop = function() {
                     "type": MessageType.ARMY_COMPOSITION,
                     "misc": "army_comp",
                     "turn": that.socket.sendTick,
-                    "misc": that.socket.armyComposition[that.socket.color]
+                    "misc": that.socket.armyComposition[that.socket.color] || {}
                 }, that.host)
             }, 500);
         }

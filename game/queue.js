@@ -29,7 +29,8 @@ rCommandQueue.prototype.pushMessage = function(msg) {
         }
 
         // Not a player message
-        if (msg.type !== MessageType.INPUT) {
+        if (msg.type !== MessageType.INPUT &&
+            msg.type !== MessageType.DONE) {
             this.queue["misc"].push(msg);
 
         // Brand new turn?
