@@ -117,6 +117,13 @@ rConnection.prototype.update = function() {
                 "type": MessageType.DONE
             };
 
+            var latency = {
+                "color": this.color,
+                "turn": this.sendTick,
+                "type": MessageType.PING,
+                "misc": this.iterDelay
+            }
+
             this.sendMessage(done);
 
             /*
@@ -232,7 +239,26 @@ rConnection.prototype.onRecv = function(data) {
         }
 
         if (count === this.peers.length + 1 && done) {
+
+            // Calculate new turn latency, if we are a peer.
+            if (!this.attribs.host) {
+                var msgs = msgs[this.host.color];
+                var latency = 0;
+                for (var i in msgs) {
+                    if (msgs[i].type === MessageType.PING) {
+                        latency = Math.max(latency, msgs[i].ping);
+                    }
+                }
+
+                this.iterDelay = latency;
+            }
+
             this.sendTick++;
+
+            console.log("Next turn:", this.sendTick);
+
+        } else {
+            console.log(this.sendTick, "is not ready, waiting for", color);
         }
     }
 };
@@ -244,7 +270,7 @@ rConnection.prototype.sendMessage = function(obj, peer) {
         // Only attach timestamp when the message being sent is our own.
         if (obj.color === this.color) {
             obj.timestamp = window.performance.now();
-            obj.ping = 0;
+            obj.ping = this.roundtrip;
         }
 
         if (zogl.debug) {
@@ -274,15 +300,14 @@ rConnection.prototype.sendMessage = function(obj, peer) {
 
 rConnection.prototype._calculateLatency = function() {
     var that = this;
-
-    clearInterval(this.intervalHandle);
-    this.intervalHandle = setInterval(function() {
-        that.update();
-    }, this.iterDelay);
-
     var latency = 0;
     var msgs = this.turnArchive.queue[this.sendTick - 1] || {};
     for (var color in msgs) {
+
+        // We don't want to include our own pings because they will reflect
+        // the last turn, hence never adjusting.
+        if (color === this.color) continue;
+
         for (var i in msgs[color]) {
             latency = Math.max(latency, msgs[color][i].ping);
         }
@@ -295,6 +320,11 @@ rConnection.prototype._calculateLatency = function() {
     // Cap in the range [100, 500]ms. If this is the case, we have a srs problem.
     this.roundtrip = Math.max(50, Math.min(latency, 450));
     this.iterDelay = this.roundtrip + 50;
+
+    clearInterval(this.intervalHandle);
+    this.intervalHandle = setInterval(function() {
+        that.update();
+    }, this.iterDelay);
 };
 
 rConnection.prototype._setupPeer = function(conn) {
