@@ -140,6 +140,7 @@ rConnection.prototype.update = function() {
             }
 
             this.recvQueue.queue["misc"] = [];
+            this._calculateLatency();
 
         } else {
 
@@ -196,7 +197,6 @@ rConnection.prototype.onRecv = function(data) {
     if (this.attribs.host && data.type !== MessageType.ARMY_COMPOSITION) {
         if (data.color !== this.color) {
             this.sendMessage(data);
-            this._calculateLatency();
         } else {
             this.recvQueue.pushMessage(data);
             this.turnArchive.pushMessage(data);
