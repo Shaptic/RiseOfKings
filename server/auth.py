@@ -56,7 +56,7 @@ def register_peer(peer_id):
 
     return make_response(jsonify({'color': col}), 200)
 
-@app.route('/getpeers/', methods=[ 'GET' ])
+@app.route('/peers/', methods=[ 'GET' ])
 @cross_origin()
 def peers():
     # Find all peers that haven't pinged us back.

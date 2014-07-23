@@ -47,6 +47,7 @@ function rConnection(army) {
                 }
 
                 that.recvQueue.addPlayer(that.color);
+                that.turnArchive.addPlayer(that.color);
                 that.armyComposition[that.color] = army.units;
 
                 console.log("We are", that.color);
@@ -87,9 +88,15 @@ function rConnection(army) {
 
     // A handle on the current tick loop, which is adjusted post-connection
     // to match a consistent network tick-rate.
-    this.intervalHandle = null;
+    this.intervalHandle = setInterval(function() {
+        that.update();
+    }, 1000);
 
-    this.socket.on("connection", function(c) { that._onConnection(c); });
+    // When a connection is opened to the socket (e.g. we are hosting),
+    // execute the callback.
+    this.socket.on("connection", function(c) {
+        that._onConnection(c);
+    });
 }
 
 rConnection.prototype.update = function() {
@@ -181,15 +188,18 @@ rConnection.prototype.onRecv = function(data) {
 
     // We've received a message, so let's add it to the internal queue.
     this.recvQueue.pushMessage(data);
+    this.turnArchive.pushMessage(data);
 
     // If we're the host, it's our responsibility to broadcast the message
-    // to the other clients.
-    if (this.attribs.host) {
+    // to the other clients. Unless it is a synchronization packet, because
+    // those require extra processing.
+    if (this.attribs.host && data.type !== MessageType.ARMY_COMPOSITION) {
         if (data.color !== this.color) {
             this.sendMessage(data);
             this._calculateLatency();
         } else {
             this.recvQueue.pushMessage(data);
+            this.turnArchive.pushMessage(data);
         }
     }
 
@@ -205,7 +215,9 @@ rConnection.prototype.onRecv = function(data) {
         var done = false;
 
         var msgs = this.getMessages(this.sendTick);
+        var count = 0;
         for (var color in msgs) {
+            count++;
             done = false;
             for (var i in msgs[color]) {
                 var msg = msgs[color][i];
@@ -219,7 +231,7 @@ rConnection.prototype.onRecv = function(data) {
             if (!done) break;
         }
 
-        if (done) {
+        if (count === this.peers.length + 1 && done) {
             this.sendTick++;
         }
     }
@@ -232,6 +244,7 @@ rConnection.prototype.sendMessage = function(obj, peer) {
         // Only attach timestamp when the message being sent is our own.
         if (obj.color === this.color) {
             obj.timestamp = window.performance.now();
+            obj.ping = 0;
         }
 
         if (zogl.debug) {
@@ -275,7 +288,12 @@ rConnection.prototype._calculateLatency = function() {
         }
     }
 
-    this.roundtrip = latency;
+    if (latency > 500) {
+        this.lagProblem = this.lagProblem + 1 || 1;
+    }
+
+    // Cap in the range [100, 500]ms. If this is the case, we have a srs problem.
+    this.roundtrip = Math.max(50, Math.min(latency, 450));
     this.iterDelay = this.roundtrip + 50;
 };
 
@@ -364,6 +382,7 @@ rConnection.prototype._onConnection = function(conn) {
                     // Host specific settings.
                     that.attribs.host = true;
                     that.recvQueue.addPlayer(conn.metadata.color);
+                    that.turnArchive.addPlayer(conn.metadata.color);
                 }
             }
         });
@@ -406,6 +425,7 @@ rConnection.prototype.connectTo = function(id, color) {
                         console.log('we are connected');
                         that._setupPeer(conn);
                         that.recvQueue.addPlayer(color);
+                        that.turnArchive.addPlayer(color);
                         that.attribs.host = false;
                         that.host = conn;
                     });

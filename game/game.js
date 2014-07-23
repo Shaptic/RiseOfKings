@@ -28,7 +28,7 @@ var GameState = {
 };
 
 function Game() {
-    zogl.debug = false;
+    //zogl.debug = false;
 
     var that = this;
 
@@ -46,13 +46,7 @@ function Game() {
     this.map = new rMap(this.gameScene);
     this.player = new rPlayer(this.map, null, this.socket);
     this.otherPlayers = [];
-
     this.armyComposition = [];
-
-    this.execDelay = {
-        "count": 0,
-        "on": false
-    };
 
     this.setStatus("waiting for connections...");
 
@@ -64,17 +58,10 @@ function Game() {
         that.render();
     }, glGlobals.canvas);
 
-    var sockHandle = setInterval(function() {
-        that.socket.update();
-    }, 1000);
-    this.socket.intervalHandle = sockHandle;
-
     sock = this.socket;
 }
 
 Game.prototype.gameLoop = function() {
-    console.log("state:", this.state);
-
     var that = this;
     switch(this.state) {
 
@@ -153,11 +140,6 @@ Game.prototype.gameLoop = function() {
 
         this.state = GameState.PLAYING;
 
-        clearInterval(this.intervalHandle);
-        this.intervalHandle = setInterval(function() {
-            that.update();
-        }, 1000 / 60);
-
         requestAnimationFrame(function() {
             that.render();
         }, glGlobals.canvas);
@@ -205,8 +187,6 @@ Game.prototype.update = function() {
             if (msg.type === MessageType.DONE) continue;
 
             console.log("Processing", msg);
-
-            this.socket.turnArchive.pushMessage(msg);
         }
 
         this.socket.recvQueue.queue[this.socket.sendTick][i] = []
@@ -323,7 +303,7 @@ Game.prototype.setStatus = function(message) {
 
 function refreshLobby() {
     var e = document.getElementById("hosts");
-    AJAX("GET", RTS_CONFIG.AUTH_SERVER+ "/getpeers/", function(ajax) {
+    AJAX("GET", RTS_CONFIG.AUTH_SERVER+ "/peers/", function(ajax) {
         if (ajax.readyState == 4 && ajax.status == 200) {
             var text = JSON.parse(ajax.responseText);
 
