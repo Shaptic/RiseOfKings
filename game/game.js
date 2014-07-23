@@ -22,7 +22,7 @@ var sock = null;
 
 var GameState = {
     WAITING_FOR_PEERS: 1,
-    WAITING_FOR_ARMY: 2,
+    WAITING_FOR_SYNC: 2,
     READY: 3,
     PLAYING: 4
 };
@@ -73,6 +73,8 @@ function Game() {
 }
 
 Game.prototype.gameLoop = function() {
+    console.log("state:", this.state);
+
     var that = this;
     switch(this.state) {
 
@@ -82,15 +84,32 @@ Game.prototype.gameLoop = function() {
             this.socket.attribs.host     ||
             this.socket.attribs.singleplayer) {
             this.setStatus("synchronizing...");
-            this.state = GameState.WAITING_FOR_ARMY;
+            this.state = GameState.WAITING_FOR_SYNC;
         }
         break;
 
-    case GameState.WAITING_FOR_ARMY:
+    case GameState.WAITING_FOR_SYNC:
         this.player.setColor(this.socket.color);
 
-        if ((this.socket.armyComposition.length > 1 &&
-             this.socket.armyComposition.length === this.socket.peers.length + 1) ||
+        // Send him our army composition data.
+        if (!this.socket.attribs.host) {
+            setTimeout(function() {
+                that.socket.sendMessage({
+                    "color": that.socket.color,
+                    "type": MessageType.ARMY_COMPOSITION,
+                    "misc": "army_comp",
+                    "turn": that.socket.sendTick,
+                    "misc": that.socket.armyComposition[that.socket.color]
+                }, that.host)
+            }, 500);
+        }
+
+        var count = 0;
+        for (var color in this.socket.armyComposition) {
+            count++;
+        }
+
+        if ((count > 1 && count === this.socket.peers.length + 1) ||
             this.socket.attribs.singleplayer) {
             this.armyComposition = this.socket.armyComposition;
             this.setStatus("loading game...");
@@ -157,7 +176,7 @@ Game.prototype.update = function() {
         // Only simulate once we've received "done" commands for all players.
         has_done = false;
         for (var j in msgs) {
-            if (msgs[j].misc === "complete") {
+            if (msgs[j].type === MessageType.DONE) {
                 has_done = true;
                 break;
             }
@@ -165,24 +184,6 @@ Game.prototype.update = function() {
 
         if (!has_done) {
             console.log("no acks for all clients");
-            return;
-        }
-
-        else if (!this.execDelay.on) {
-            this.execDelay = {
-                "count": this.socket.roundtrip / 2,
-                "on": true
-            };
-        }
-
-        else {
-            this.execDelay.count--;
-        }
-
-        if (this.execDelay.count <= 0) {
-            this.execDelay.count = 0;
-            this.execDelay.on = false;
-        } else {
             return;
         }
 
@@ -199,35 +200,21 @@ Game.prototype.update = function() {
             }
         }
 
-        for (var j = msgs.length - 1; j >= 0; --j) {
+        for (var j in msgs) {
             var msg = msgs[j];
-            if (msg.misc === "complete") continue;
+            if (msg.type === MessageType.DONE) continue;
 
             console.log("Processing", msg);
 
-            var units = [];
-            for (var j in msg.units) {
-                for (var k in p.units) {
-                    if (p.units[k].id === msg.units[j]) {
-                        units.push(p.units[k]);
-                    }
-                }
-            }
-
-            console.log("Giving order to", p.color, msg.orders);
-
-            var group = new rSquad(this.map);
-            group.assignUnits(units);
-            group.giveOrders(msg.orders);
-            p.groups.push(group);
-
-            msgs.splice(j, 1);
+            this.socket.turnArchive.pushMessage(msg);
         }
+
+        this.socket.recvQueue.queue[this.socket.sendTick][i] = []
     }
 
     // Delete all but the last 10 turns.
     for (var tick in this.socket.recvQueue.queue) {
-        if (tick <= this.socket.sendQueue - 10) {
+        if (tick <= this.socket.sendTick - 10) {
             delete this.socket.recvQueue.queue[tick];
         }
     }
@@ -353,131 +340,6 @@ function refreshLobby() {
             e.innerHTML += '</ul>';
         }
     });
-}
-
-function initializeGame(army, socket) {
-    var w = new zogl.zWindow(WINDOW_SIZE.w, WINDOW_SIZE.h);
-    w.init();
-
-    var scene   = new zogl.zScene();
-    var gameMap = new rMap(scene);
-    var player  = new rPlayer(gameMap, sock.color, sock);
-    var enemies = new Array(sock.peers.length - 1);
-
-    var units = new Array(army_composition.length);
-    for (var i in army_composition[sock.color]) {
-        var u = new rUnit(scene, army_composition[i].type);
-        units.push(u);
-    }
-    player.setUnits(units);
-
-    sock.setOnUpdate(function(commands) {
-        for (var color in commands) {
-            var cmds = commands[color];
-            for (var i in cmds.orders) {
-                var order = cmds.orders[i];
-
-                if (order.type === "create") {
-                    if (color === enemy.color) {
-                        enemyUnits.push(new rUnit(scene, order.unitType));
-                    }
-                }
-            }
-        }
-
-        enemy.setUnits(enemyUnits);
-    });
-
-    gameMap.create();
-
-    var playerEventHandler = function(evt) {
-        player.handleEvent(evt);
-        //enemy.handleEvent(evt);
-    }
-
-    glGlobals.canvas.addEventListener("mousedown", playerEventHandler, false);
-    glGlobals.canvas.addEventListener("mouseup",   playerEventHandler, false);
-    glGlobals.canvas.addEventListener("mousemove", function(evt) {
-        playerEventHandler(evt);
-
-        if (player.selectionBox !== null) {
-            selectionQuad = new zogl.zQuad(player.selectionQuad.w,
-                                           player.selectionQuad.h);
-            selectionQuad.setColor(new zogl.color4([1, 1, 1, 0.5]));
-            selectionQuad.create();
-            selectionQuad.move(player.selectionQuad.x, player.selectionQuad.y);
-
-        } else {
-            selectionQuad = new zogl.zQuad(1, 1);
-            selectionQuad.create();
-        }
-
-    }, false);
-    glGlobals.canvas.addEventListener("mouseout",  playerEventHandler, false);
-
-    var selectionQuad = new zogl.zQuad();
-
-    var gameLoop = function() {
-        socket.sendTick = sock.sendTick - 3;
-
-        w.clear('#000000');
-
-        player.update();
-        enemy.update();
-
-        scene.draw();
-
-        for (var i in player.units) {
-            player.units[i].drawHealthBar();
-
-            for (var j = player.units[i].projectiles.length - 1;
-                     j >= 0; --j) {
-                player.units[i].projectiles[j].draw();
-
-                for (var k in enemy.units) {
-                    if (enemy.units[k].isAlive() &&
-                        enemy.units[k].collides(player.units[i].projectiles[j].rect)) {
-                        enemy.units[k].doDamage(player.units[i]);
-                        player.units[i].projectiles.splice(j, 1);
-                        break;
-                    }
-                }
-            }
-        }
-
-        for (var i in enemy.units) {
-            enemy.units[i].drawHealthBar();
-
-            for (var j = enemy.units[i].projectiles.length - 1;
-                     j >= 0; --j) {
-                enemy.units[i].projectiles[j].draw();
-
-                for (var k in player.units) {
-                    if (player.units[k].isAlive() &&
-                        player.units[k].collides(enemy.units[i].projectiles[j].rect)) {
-                        player.units[k].doDamage(enemy.units[i]);
-                        enemy.units[i].projectiles.splice(j, 1);
-                        break;
-                    }
-                }
-            }
-        }
-
-        if (player.selectionBox !== null) {
-            gl.enable(gl.BLEND);
-            gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-            selectionQuad.draw();
-            gl.disable(gl.BLEND);
-        }
-
-        /*for (var i in player.groups) {
-            player.groups[i].astar.showPath();
-        }*/
-
-        requestAnimationFrame(gameLoop, glGlobals.canvas);
-    };
-
-    requestAnimationFrame(gameLoop, glGlobals.canvas);
 }
 
 window.onload = function() {

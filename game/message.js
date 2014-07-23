@@ -46,9 +46,19 @@ function validateMessage(obj) {
 
     valid = (
         obj.color !== undefined &&
-        !!obj.turn              &&
-        obj.type in MessageType
+        !!obj.turn
     );
+
+    if (valid) {
+        for (var i in MessageType) {
+            if (MessageType[i] === obj.type) {
+                valid = true;
+                break;
+            }
+
+            valid = false;
+        }
+    }
 
     obj.units  = obj.units || [];
     obj.orders = obj.orders || [];
