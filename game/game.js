@@ -28,7 +28,7 @@ var GameState = {
 };
 
 function Game() {
-    //zogl.debug = false;
+    zogl.debug = false;
 
     var that = this;
 
@@ -59,6 +59,19 @@ function Game() {
     }, glGlobals.canvas);
 
     sock = this.socket;
+
+    this.timer = {
+        "start": window.performance.now(),
+        "time": 0,
+        "interval": 1000.0 / 60
+    };
+
+    this.accurateInterval = function() {
+        that.timer.time += that.timer.interval;
+
+        var diff = (window.performance.now() - that.timer.start) - that.timer.time;
+        setTimeout(that.accurateInterval, that.timer.interval - diff);
+    }
 }
 
 Game.prototype.gameLoop = function() {
@@ -144,6 +157,11 @@ Game.prototype.gameLoop = function() {
             that.render();
         }, glGlobals.canvas);
         break;
+
+    case GameState.PLAYING:
+        setTimeout(function() {
+            that.accurateInterval();
+        }, this.timer.interval);
     }
 };
 
