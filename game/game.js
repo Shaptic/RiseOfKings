@@ -72,7 +72,9 @@ function Game() {
         callback();
 
         var diff = (window.performance.now() - that.timer.start) - that.timer.time;
-        setTimeout(that.accurateInterval, that.timer.interval - diff);
+        setTimeout(function() {
+            that.accurateInterval(callback);
+        }, that.timer.interval - diff);
     }
 }
 
@@ -161,69 +163,78 @@ Game.prototype.gameLoop = function() {
 
         clearInterval(this.intervalHandle);
 
+        that.accurateInterval(function() {
+            that.gameLoop();
+        });
+
         requestAnimationFrame(function() {
             that.render();
         }, glGlobals.canvas);
+
+        this.socket.onTick = function(tick) {
+            var playerCmds = this.socket.getMessages(tick);
+            for (var i in playerCmds) {
+                var msgs = playerCmds[i];
+                if (msgs.length === 0 || (
+                        msgs.length === 1 &&
+                        msgs[0].type === MessageType.DONE
+                    )) {
+                    continue;
+                }
+
+                // Figure out which player this set of commands is relevant to.
+                var p = this.player;
+                if (this.player.color !== msgs[0].color) {
+                    for (var j in this.otherPlayers) {
+                        if (this.otherPlayers[j].color !== msgs[0].color) {
+                            continue;
+                        }
+
+                        p = this.otherPlayers[j];
+                        break;
+                    }
+                }
+
+                for (var j in msgs) {
+                    var msg = msgs[j];
+                    if (msg.type === MessageType.DONE) continue;
+
+                    console.log("Processing", msg);
+
+                    p.handleSocketEvent(msg.misc);
+                }
+
+                this.socket.recvQueue.queue[this.socket.sendTick][i] = []
+            }
+
+            // Delete all but the last 10 turns.
+            for (var tick in this.socket.recvQueue.queue) {
+                if (tick <= this.socket.sendTick - 10) {
+                    delete this.socket.recvQueue.queue[tick];
+                }
+            }
+        };
+
         break;
 
     case GameState.PLAYING:
         this.update();
-        setTimeout(this.accurateInterval.bind(this, function() {
-            that.gameLoop();
-        }), this.timer.interval);
+        break;
     }
 };
 
 Game.prototype.update = function() {
-    var playerCmds = this.socket.getMessages(this.socket.sendTick);
-    for (var i in playerCmds) {
-        var msgs = playerCmds[i];
-        if (msgs.length === 0) {
-            return;
-        }
-
-        // Only simulate once we've received "done" commands for all players.
-        has_done = false;
-        for (var j in msgs) {
-            if (msgs[j].type === MessageType.DONE) {
-                has_done = true;
-                break;
-            }
-        }
-
-        if (!has_done) {
-            console.log("no acks for all clients");
-            return;
-        }
-
-        // Figure out which player this set of commands is relevant to.
-        var p = this.player;
-        if (this.player.color !== msgs[0].color) {
-            for (var j in this.otherPlayers) {
-                if (this.otherPlayers[j].color !== msgs[0].color) {
-                    continue;
-                }
-
-                p = this.otherPlayers[j];
-                break;
-            }
-        }
-
-        for (var j in msgs) {
-            var msg = msgs[j];
-            if (msg.type === MessageType.DONE) continue;
-
-            console.log("Processing", msg);
-        }
-
-        this.socket.recvQueue.queue[this.socket.sendTick][i] = []
+    if (this.socket.roundtrip !== undefined) {
+        this.setStatus(
+            'Ping: ' +
+            this.socket.roundtrip.toFixed(2) +
+            'ms'
+        );
     }
 
-    // Delete all but the last 10 turns.
-    for (var tick in this.socket.recvQueue.queue) {
-        if (tick <= this.socket.sendTick - 10) {
-            delete this.socket.recvQueue.queue[tick];
-        }
+    this.player.update();
+    for (var i in this.otherPlayers) {
+        this.otherPlayers[i].update();
     }
 }
 
@@ -247,19 +258,6 @@ Game.prototype.render = function() {
         break;
 
     case GameState.PLAYING:
-        if (this.socket.roundtrip !== undefined) {
-            this.setStatus(
-                'Ping: ' +
-                this.socket.roundtrip.toFixed(2) +
-                'ms'
-            );
-        }
-
-        this.player.update();
-        for (var i in this.otherPlayers) {
-            this.otherPlayers[i].update();
-        }
-
         this.gameScene.draw();
 
         for (var i in this.player.selection) {

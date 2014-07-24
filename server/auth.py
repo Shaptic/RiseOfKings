@@ -41,7 +41,6 @@ def register_peer(peer_id):
     col = None
     for k, v in AVAILABLE_COLORS.iteritems():
         if AVAILABLE_COLORS[k]:
-            print k, 'is available'
             col = k
             AVAILABLE_COLORS[k] = False
             break
@@ -64,7 +63,6 @@ def peers():
     t = time.time()
     for gp in gamePeers:
         if t - gp.last_ping >= 5 and gp.color:
-            print gp.color, 'is free again'
             AVAILABLE_COLORS[gp.color] = True
 
     gamePeers = [p for p in gamePeers if time.time() - p.last_ping < 5]

@@ -77,6 +77,7 @@ function rConnection(army) {
     this.sendTick   = 1;    // The current network tick. It represents the exact
                             // tick that we are currently issuing commands for
                             // (player input).
+    this.onTick     = function() {};
 
     this.sendDelay  = 2;    // Delay (in ticks) to set commands to.
 
@@ -254,7 +255,7 @@ rConnection.prototype.onRecv = function(data) {
                 this.iterDelay = latency;
             }
 
-            this.sendTick++;
+            this.onTick(this.sendTick++);
 
             console.log("Next turn:", this.sendTick);
 

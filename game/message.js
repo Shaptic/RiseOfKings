@@ -8,17 +8,10 @@
  * Hence, the message specification is as follows:
  *
  * var Message = {
+ *  "type": MessageType,// The type of message being sent.
  *  "tick": INTEGER,    // Some value indicating which turn this message is for.
- *
  *  "color": STRING,    // The player color that this message is for (sender ID).
- *
- *  "units": [],        // A list of integers representing unique unit IDs for
- *                      // a certain player which this message applies for. This
- *                      // is usually just determined by a map query client-side.
- *
- *  "orders": [],       // A list of orders (which are JSON objects as well)
- *                      // that apply to the above units.
- *
+ *  "ping": FLOAT,      // A number indicating the current round-trip time.
  *  "misc": STRING      // Miscallaneous data assoc. with this message.
  * };
  *
@@ -60,8 +53,6 @@ function validateMessage(obj) {
         }
     }
 
-    obj.units  = obj.units || [];
-    obj.orders = obj.orders || [];
     obj.misc   = obj.misc || "";
     obj.ping   = obj.ping || 0;
 

@@ -24,7 +24,7 @@ rCommandQueue.prototype.pushMessage = function(msg) {
     if (obj !== false) {
 
         if (msg.type === MessageType.INPUT) {
-            console.log("received order", msg.orders[0].type, "for", msg.color,
+            console.log("received order", msg.misc.type, "for", msg.color,
                         "on", msg.turn);
         }
 

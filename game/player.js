@@ -39,6 +39,21 @@ rPlayer.prototype.handleEvent = function(evt) {
     var position = zogl.getMousePosition(evt);
         position = new vector(position.x, position.y);
 
+    var order = {
+        "type":     MessageType.INPUT,
+        "color":    this.color,
+        "ping":     this.socket.roundtrip,
+        "turn":     this.socket.sendTick,
+        "misc":     {
+            "type":     evt.type,
+            "button":   evt.button,
+            "position": {
+                "x": position.x,
+                "y": position.y
+            }
+        }
+    };
+
     // LMB was pressed. Hence we are either (a) selecting a single unit,
     // (b) deselecting units or (c) doing nothing.
     if (evt.type == "mousedown" && evt.button == 0) {
@@ -57,7 +72,6 @@ rPlayer.prototype.handleEvent = function(evt) {
          * likely faster to just query the map for units than to iterate
          * through every guy we've got to ourselves.
          */
-
         this.selection = [];
         var tmp = this.map.query(this.selectionBox, rUnit);
         for (var i in tmp) {
@@ -78,12 +92,15 @@ rPlayer.prototype.handleEvent = function(evt) {
             this.selection = [];
             for (var i in results) {
                 if (results[i].type  === unit.type &&
-                    results[i].color ===  unit.color) {
+                    results[i].color === unit.color) {
                     this.selection.push(results[i]);
                 }
             }
 
             this.just_lmb = false;
+
+            // Re-mark the order as a double-click.
+            order.misc.type += " double";
 
         // Otherwise, mark that we clicked LMB so that we can detect a double
         // click the next time around if it is within some threshold of time.
@@ -92,6 +109,8 @@ rPlayer.prototype.handleEvent = function(evt) {
             var that = this;
             setTimeout(function() { that.just_lmb = false; }, 300);
         }
+
+        this.socket.addOrders(order);
 
     // Mouse is moving. Hence we are either (a) adjusting the selection, (b)
     // panning the map or (c) both.
@@ -134,89 +153,76 @@ rPlayer.prototype.handleEvent = function(evt) {
         // Issue orders.
         } else if (evt.button == 2 && this.selection !== []) {
 
-            // We don't want to recreate a group for the currently selected
-            // units every time an order is issued (if no deselection between
-            // orders), so we need to check for thatl.
-            if (!this.selectionGroup) {
-                var group = new rSquad(this.map);
-                group.assignUnits(this.selection);
-                this.groups.push(group);
-                this.selectionGroup = group;
+            // Play sounds, animation, etc.
+            // No real orders yet.
 
-            } else {
-                group = this.selectionGroup;
+        }
+
+        this.socket.addOrders(order);
+    }
+};
+
+rPlayer.prototype.handleSocketEvent = function(evt) {
+    if (evt instanceof Array) {
+        for (var i in evt) {
+            this.handleSocketEvent(evt[i]);
+        }
+        return;
+    }
+
+    var position = evt.position;
+
+    // TODO: Process LMB up/down events that do validation on the current
+    // selection. And additionally actually do selection for non-local players.
+    // At the moment, only local orders will be executed because that's the only
+    // way that there will be a selection.
+
+    // Issue orders.
+    if (evt.button == 2 && this.selection !== []) {
+
+        // We don't want to recreate a group for the currently selected
+        // units every time an order is issued (if no deselection between
+        // orders), so we need to check for that.
+        if (!this.selectionGroup) {
+            var group = new rSquad(this.map);
+            group.assignUnits(this.selection);
+            this.groups.push(group);
+            this.selectionGroup = group;
+
+        } else {
+            group = this.selectionGroup;
+        }
+
+        // If there is anyone at that position, it's an attack order.
+        var units = this.map.query(new zogl.rect(position.x, position.y,
+                                                 5, 5), rUnit);
+        var is_attack = false;
+
+        for (var i in units) {
+            if (units[i].color !== this.color) {
+                is_attack = true;
+                break;
             }
+        }
 
-            // If there is anyone at that position, it's an attack order.
-            var units = this.map.query(new zogl.rect(position.x, position.y,
-                                                     5, 5), rUnit);
-            var is_attack = false;
+        // Add orders if CTRL is being held down, otherwise clear them.
+        // TODO: Adding.
+        group.clearOrders();
 
-            for (var i in units) {
-                if (units[i].color !== this.color) {
-                    is_attack = true;
-                    break;
-                }
-            }
+        // Attack order
+        if (is_attack) {
+            group.giveOrders({
+                "type": "attack",
+                "position": position,
+                "target": units[i]
+            });
 
-            // Add orders if CTRL is being held down, otherwise clear them.
-            // TODO: Adding.
-            group.clearOrders();
-
-            var order = {};
-
-            // Attack order
-            if (is_attack) {
-                order = {
-                    "type": "attack",
-                    "position": {
-                        'x': position.x,
-                        'y': position.y
-                    },
-                    "target": units[i]
-                };
-
-                /*
-                group.giveOrders({
-                    "type": "attack",
-                    "position": position,
-                    "target": units[i]
-                });
-                */
-
-            // Move order
-            } else {
-                order = {
-                    "type": "move",
-                    "position": {
-                        'x': position.x,
-                        'y': position.y
-                    }
-                };
-
-                /*group.giveOrders({
-                    "type": "move",
-                    "position": position
-                });*/
-            }
-
-            var ids = [];
-            for (var i in group.units) {
-                ids.push(group.units[i].id);
-            }
-
-            var sockOrder = {
-                "color": this.color,
-                "orders": [order],
-                "units": ids,
-                "turn": this.socket.sendTick,
-                "misc": (order.type + " order")
-            };
-
-            this.socket.addOrders(sockOrder);
-
-            console.log("Adding", order.type, "order to tick",
-                        sockOrder.turn);
+        // Move order
+        } else {
+            group.giveOrders({
+                "type": "move",
+                "position": position
+            });
         }
     }
 };
