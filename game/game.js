@@ -172,7 +172,7 @@ Game.prototype.gameLoop = function() {
         }, glGlobals.canvas);
 
         this.socket.onTick = function(tick) {
-            var playerCmds = this.socket.getMessages(tick);
+            var playerCmds = that.socket.getMessages(tick);
             for (var i in playerCmds) {
                 var msgs = playerCmds[i];
                 if (msgs.length === 0 || (
@@ -183,14 +183,14 @@ Game.prototype.gameLoop = function() {
                 }
 
                 // Figure out which player this set of commands is relevant to.
-                var p = this.player;
-                if (this.player.color !== msgs[0].color) {
-                    for (var j in this.otherPlayers) {
-                        if (this.otherPlayers[j].color !== msgs[0].color) {
+                var p = that.player;
+                if (that.player.color !== msgs[0].color) {
+                    for (var j in that.otherPlayers) {
+                        if (that.otherPlayers[j].color !== msgs[0].color) {
                             continue;
                         }
 
-                        p = this.otherPlayers[j];
+                        p = that.otherPlayers[j];
                         break;
                     }
                 }
@@ -204,13 +204,13 @@ Game.prototype.gameLoop = function() {
                     p.handleSocketEvent(msg.misc);
                 }
 
-                this.socket.recvQueue.queue[this.socket.sendTick][i] = []
+                that.socket.recvQueue.queue[tick][i] = []
             }
 
             // Delete all but the last 10 turns.
-            for (var tick in this.socket.recvQueue.queue) {
-                if (tick <= this.socket.sendTick - 10) {
-                    delete this.socket.recvQueue.queue[tick];
+            for (var tick in that.socket.recvQueue.queue) {
+                if (tick <= that.socket.sendTick - 10) {
+                    delete that.socket.recvQueue.queue[tick];
                 }
             }
         };
