@@ -150,7 +150,7 @@ Game.prototype.gameLoop = function() {
             if (i === c) {
                 this.player.setUnits(units);
             } else {
-                var p = new rPlayer(this.map, i);
+                var p = new rPlayer(this.map, i, this.socket);
                 p.setUnits(units);
                 this.otherPlayers.push(p);
             }
@@ -201,7 +201,8 @@ Game.prototype.gameLoop = function() {
 
                     console.log("Processing", msg);
 
-                    p.handleSocketEvent(msg.misc);
+                    var select = !(p === that.player);
+                    p.handleSocketEvent(msg.misc, select);
                 }
 
                 that.socket.recvQueue.queue[tick][i] = []
