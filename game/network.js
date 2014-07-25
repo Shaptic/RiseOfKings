@@ -77,6 +77,9 @@ function rConnection(army) {
     this.sendTick   = 1;    // The current network tick. It represents the exact
                             // tick that we are currently issuing commands for
                             // (player input).
+    this.skippedTurn= 0;    // Latency control indicating how many iterations
+                            // have been skipped for this turn.
+
     this.onTick     = function() {};
 
     this.sendDelay  = 2;    // Delay (in ticks) to set commands to.
@@ -116,16 +119,18 @@ rConnection.prototype.update = function() {
             var done = {
                 "color": this.color,
                 "turn": this.sendTick,
-                "type": MessageType.DONE
-            };
+                "type": MessageType.DONE,
+                "misc": this.iterDelay
+            }
 
             var latency = {
                 "color": this.color,
                 "turn": this.sendTick,
                 "type": MessageType.PING,
-                "misc": this.iterDelay
+                "ping": this.iterDelay
             }
 
+            this.sendMessage(latency);
             this.sendMessage(done);
 
             /*
@@ -157,13 +162,26 @@ rConnection.prototype.update = function() {
             for (var i in this.recvQueue.queue["misc"]) {
                 var msg = this.recvQueue.queue["misc"][i];
 
+                if (this.host.color !== undefined &&
+                    this.host.color !== msg.color) {
+                    throw('bad color');
+                }
+
+                // We only get synchronization info from the host,
+                // so make sure we can identify the host as such.
+                this.host.color = msg.color;
+
                 if (msg.type === MessageType.ARMY_COMPOSITION) {
                     console.log('client grok army comp', msg.misc);
 
                     this.armyComposition = msg.misc;
                     this.recvQueue.queue["misc"].splice(i, 1);
 
-                    break;
+                // Calculate new turn latency.
+                } else if (msg.type === MessageType.PING) {
+                    console.log('client grok latency', msg.ping);
+
+                    this.iterDelay = Math.max(this.iterDelay, msg.ping);
                 }
             }
 
@@ -176,6 +194,20 @@ rConnection.prototype.update = function() {
                 "turn": this.sendTick,
                 "ping": this.roundtrip
             });
+        }
+
+        // Check if the turn is done. If it isn't, mark it as such. Once a
+        // certain number of these marks happens for a turn, we need to DC from
+        // the client who is holding us up.
+        var waiter = this.turnReady(this.sendTick);
+        if (waiter !== undefined && waiter !== true) {
+            //console.log("Turn isn't ready; waiting on", waiter,
+            //            " --- ", this.skippedTurn, "/", 3);
+            this.skippedTurn++;
+
+            if (this.skippedTurn >= 3000 / this.iterDelay) {
+                console.log("We should DC.");
+            }
         }
 
     /*
@@ -220,46 +252,13 @@ rConnection.prototype.onRecv = function(data) {
     }
 
     // Determine whether or not we can now increase the current network turn.
-    if (data.turn === this.sendTick && data.type === MessageType.DONE) {
-        var done = false;
+    if (data.turn === this.sendTick && data.type === MessageType.DONE &&
+        this.turnReady(this.sendTick) === true) {
 
-        var msgs = this.getMessages(this.sendTick);
-        var count = 0;
-        for (var color in msgs) {
-            count++;
-            done = false;
-            for (var i in msgs[color]) {
-                var msg = msgs[color][i];
+        this.skippedTurn = 0;
+        this.onTick(this.sendTick++);
 
-                if (msg.type === MessageType.DONE) {
-                    done = true;
-                    break;
-                }
-            }
-
-            if (!done) break;
-        }
-
-        if (count === this.peers.length + 1 && done) {
-
-            // Calculate new turn latency, if we are a peer.
-            if (!this.attribs.host) {
-                var msgs = msgs[this.host.color];
-                var latency = 0;
-                for (var i in msgs) {
-                    if (msgs[i].type === MessageType.PING) {
-                        latency = Math.max(latency, msgs[i].ping);
-                    }
-                }
-
-                this.iterDelay = latency;
-            }
-
-            this.onTick(this.sendTick++);
-
-            console.log("Next turn:", this.sendTick);
-
-        }
+        console.log("Next turn:", this.sendTick, this.iterDelay);
     }
 };
 
@@ -301,7 +300,7 @@ rConnection.prototype.sendMessage = function(obj, peer) {
 rConnection.prototype._calculateLatency = function() {
     var that = this;
     var latency = 0;
-    var msgs = this.turnArchive.queue[this.sendTick - 1] || {};
+    var msgs = this.recvQueue.queue[this.sendTick - 1] || {};
     for (var color in msgs) {
 
         // We don't want to include our own pings because they will reflect
@@ -369,6 +368,30 @@ rConnection.prototype.getMessages = function(tick, color) {
     }
 
     return this.recvQueue.queue[tick][color] || [];
+};
+
+rConnection.prototype.turnReady = function(tick) {
+    var done = false;
+
+    var msgs = this.getMessages(tick);
+    var count = 0;
+    for (var color in msgs) {
+        count++;
+        done = false;
+        for (var i in msgs[color]) {
+            var msg = msgs[color][i];
+
+            if (msg.type === MessageType.DONE) {
+                done = true;
+                break;
+            }
+        }
+
+        if (!done) break;
+    }
+
+    var ready = (done && count === this.peers.length + 1);
+    return ready ? ready : color;
 };
 
 /*

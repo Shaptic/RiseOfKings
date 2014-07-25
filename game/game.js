@@ -28,7 +28,7 @@ var GameState = {
 };
 
 function Game() {
-    zogl.debug = false;
+    //zogl.debug = false;
 
     var that = this;
 
@@ -198,6 +198,11 @@ Game.prototype.gameLoop = function() {
                 for (var j in msgs) {
                     var msg = msgs[j];
                     if (msg.type === MessageType.DONE) continue;
+
+                    if (msg.type === MessageType.PING &&
+                        !that.socket.attribs.host) {
+                        that.socket.iterDelay = msg.misc;
+                    }
 
                     console.log("Processing", msg);
 
