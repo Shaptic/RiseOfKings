@@ -28,7 +28,7 @@ var GameState = {
 };
 
 function Game() {
-    //zogl.debug = false;
+    zogl.debug = false;
 
     var that = this;
 

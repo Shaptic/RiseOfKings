@@ -119,8 +119,7 @@ rConnection.prototype.update = function() {
             var done = {
                 "color": this.color,
                 "turn": this.sendTick,
-                "type": MessageType.DONE,
-                "misc": this.iterDelay
+                "type": MessageType.DONE
             }
 
             var latency = {
@@ -179,11 +178,14 @@ rConnection.prototype.update = function() {
 
                 // Calculate new turn latency.
                 } else if (msg.type === MessageType.PING) {
-                    console.log('client grok latency', msg.ping);
-
-                    this.iterDelay = Math.max(this.iterDelay, msg.ping);
+                    this.iterDelay = msg.ping;
                 }
             }
+
+            clearInterval(this.intervalHandle);
+            this.intervalHandle = setInterval(function() {
+                that.update();
+            }, this.iterDelay);
 
             this.recvQueue.queue["misc"] = [];
 
@@ -201,11 +203,11 @@ rConnection.prototype.update = function() {
         // the client who is holding us up.
         var waiter = this.turnReady(this.sendTick);
         if (waiter !== undefined && waiter !== true) {
-            //console.log("Turn isn't ready; waiting on", waiter,
-            //            " --- ", this.skippedTurn, "/", 3);
+            console.log("Turn isn't ready; waiting on", waiter,
+                        " --- ", this.skippedTurn, "/", 3);
             this.skippedTurn++;
 
-            if (this.skippedTurn >= 3000 / this.iterDelay) {
+            if (this.skippedTurn >= 10000 / this.iterDelay) {
                 console.log("We should DC.");
             }
         }

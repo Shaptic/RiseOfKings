@@ -13,6 +13,7 @@ rCommandQueue.prototype.addPlayer = function(color) {
 
     this.colors.push(color);
     for (var tick in this.queue) {
+        if (tick === "misc") continue;
         this.queue[tick][color] = [];
     }
 };
