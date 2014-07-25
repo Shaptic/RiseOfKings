@@ -105,6 +105,8 @@ function rConnection(army) {
 }
 
 rConnection.prototype.update = function() {
+    var that = this;
+
     // Connected means we are currently in-game, so we should process
     // network messages accordingly.
     if (this.attribs.connected) {
@@ -204,7 +206,9 @@ rConnection.prototype.update = function() {
         var waiter = this.turnReady(this.sendTick);
         if (waiter !== undefined && waiter !== true) {
             console.log("Turn isn't ready; waiting on", waiter,
-                        " --- ", this.skippedTurn, "/", 3);
+                        " --- ", this.skippedTurn, "/", parseInt(
+                            10000 / this.iterDelay
+                        ));
             this.skippedTurn++;
 
             if (this.skippedTurn >= 10000 / this.iterDelay) {
@@ -378,8 +382,9 @@ rConnection.prototype.turnReady = function(tick) {
     var msgs = this.getMessages(tick);
     var count = 0;
     for (var color in msgs) {
-        count++;
         done = false;
+
+        if (msgs[color].length) count++;
         for (var i in msgs[color]) {
             var msg = msgs[color][i];
 
