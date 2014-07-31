@@ -224,6 +224,8 @@ Game.prototype.gameLoop = function() {
         break;
 
     case GameState.PLAYING:
+        if (this.socket.skippedTurn > 0) break;
+
         this.update();
         break;
     }
@@ -241,6 +243,35 @@ Game.prototype.update = function() {
     this.player.update();
     for (var i in this.otherPlayers) {
         this.otherPlayers[i].update();
+    }
+
+    allPlayers = this.otherPlayers.slice(0);
+    allPlayers.push(this.player);
+
+    for (var i in allPlayers) {
+        for (var j in allPlayers[i].units) {
+
+            var attacker = allPlayers[i].units[j];
+
+            for (var k = allPlayers[i].units[j].projectiles.length - 1;
+                     k >= 0; --k) {
+
+                for (var a in allPlayers) {
+                    if (allPlayers[a] === allPlayers[i]) continue;
+
+                    for (var b in allPlayers[a].units) {
+                        if (allPlayers[a].units[b].isAlive() &&
+                            allPlayers[a].units[b].collides(
+                                attacker.projectiles[j].rect
+                            )) {
+                            allPlayers[a].units[b].doDamage(attacker);
+                            attacker.projectiles.splice(k, 1);
+                            break;
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -265,6 +296,17 @@ Game.prototype.render = function() {
 
     case GameState.PLAYING:
         this.gameScene.draw();
+
+        allPlayers = this.otherPlayers.slice(0);
+        allPlayers.push(this.player);
+        for (var i in allPlayers) {
+            for (var j in allPlayers[i].units) {
+                for (var k = allPlayers[i].units[j].projectiles.length - 1;
+                         k >= 0; --k) {
+                    allPlayers[i].units[j].projectiles[k].draw();
+                }
+            }
+        }
 
         for (var i in this.player.selection) {
             this.player.selection[i].drawHealthBar();

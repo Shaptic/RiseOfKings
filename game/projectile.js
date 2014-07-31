@@ -9,8 +9,6 @@ function rProjectile(scene, type) {
 
     // Create our sprites.
     var tx = new zogl.zTexture();
-    tx.loadFromFile(type + ".png");
-
     var that = this;
     var q = new zogl.zQuad();
     tx.setOnload(function() {
@@ -19,6 +17,8 @@ function rProjectile(scene, type) {
         q.create();
         that.addObject(q);
     });
+
+    tx.loadFromFile(type + ".png");
 
     this.flags.blend = true;
 

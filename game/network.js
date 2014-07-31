@@ -205,11 +205,12 @@ rConnection.prototype.update = function() {
         // the client who is holding us up.
         var waiter = this.turnReady(this.sendTick);
         if (waiter !== undefined && waiter !== true) {
+            this.skippedTurn++;
+
             console.log("Turn isn't ready; waiting on", waiter,
                         " --- ", this.skippedTurn, "/", parseInt(
                             10000 / this.iterDelay
                         ));
-            this.skippedTurn++;
 
             if (this.skippedTurn >= 10000 / this.iterDelay) {
                 console.log("We should DC.");
@@ -273,7 +274,7 @@ rConnection.prototype.sendMessage = function(obj, peer) {
     if (msg !== false) {
 
         // Only attach timestamp when the message being sent is our own.
-        if (obj.color === this.color) {
+        if (obj.color === this.color && obj.type != MessageType.PING) {
             obj.timestamp = window.performance.now();
             obj.ping = this.roundtrip;
         }
@@ -319,17 +320,22 @@ rConnection.prototype._calculateLatency = function() {
     }
 
     if (latency > 500) {
-        this.lagProblem = this.lagProblem + 1 || 1;
+        this.lagProblem = (this.lagProblem || 0) + 1;
     }
 
     // Cap in the range [100, 500]ms. If this is the case, we have a srs problem.
-    this.roundtrip = Math.max(50, Math.min(latency, 450));
-    this.iterDelay = this.roundtrip + 50;
+    // Upscale to the nearest 50ms.
+    this.roundtrip = Math.max(50, Math.min(latency, 400));
+    var tmp = Math.ceil((this.roundtrip + 50) / 50) * 50;
 
-    clearInterval(this.intervalHandle);
-    this.intervalHandle = setInterval(function() {
-        that.update();
-    }, this.iterDelay);
+    if (tmp !== this.iterDelay) {
+        this.iterDelay = tmp;
+
+        clearInterval(this.intervalHandle);
+        this.intervalHandle = setInterval(function() {
+            that.update();
+        }, this.iterDelay);
+    }
 };
 
 rConnection.prototype._setupPeer = function(conn) {
