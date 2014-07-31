@@ -6,106 +6,53 @@
     <meta name="user-scalable" content="no">
 
     <title>Rise of Kings</title>
-    <style type="text/css">
-        html {
-            -ms-touch-action: none;
-        }
-
-        canvas {
-            border: 1px solid black;
-        }
-
-        img {
-            display: none;
-        }
-
-        .button {
-            -moz-box-shadow: 0px 1px 0px 0px #bee2f9;
-            -webkit-box-shadow: 0px 1px 0px 0px #bee2f9;
-            box-shadow: 0px 1px 0px 0px #bee2f9;
-            background-color:#63b8ee;
-            -webkit-border-top-left-radius:0px;
-            -moz-border-radius-topleft:0px;
-            border-top-left-radius:0px;
-            -webkit-border-top-right-radius:0px;
-            -moz-border-radius-topright:0px;
-            border-top-right-radius:0px;
-            -webkit-border-bottom-right-radius:0px;
-            -moz-border-radius-bottomright:0px;
-            border-bottom-right-radius:0px;
-            -webkit-border-bottom-left-radius:0px;
-            -moz-border-radius-bottomleft:0px;
-            border-bottom-left-radius:0px;
-            text-indent:0px;
-            border:1px solid #3866a3;
-            display:inline-block;
-            color:#14396a;
-            font-family:Verdana;
-            font-size:15px;
-            font-weight:normal;
-            font-style:normal;
-            height:57px;
-            line-height:57px;
-            width:128px;
-            text-decoration:none;
-            text-align:center;
-        }.button:hover {
-            background-color:#438ccc;
-        }.button:active {
-            position:relative;
-            top:1px;
-        }
-
-        #lobby tr, #lobby td {
-            border: 1px solid black;
-        }
-    </style>
-
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css">
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap-theme.min.css">
+    <link rel="stylesheet" href="/css/style.css">
 </head>
+
 <body>
-    <label>Server Name:<input type="text" id="server-name"></label><br />
-    <a class="button" id="host-btn" href="javascript:submitForm();">
-        Host Game
-    </a>
-    <a class="button" id="cancel-btn" href="index.html">Cancel</a>
+    <div class="navbar navbar-inverse navbar-fixed-top" role="navigation">
+      <div class="container">
+        <div class="navbar-header">
+          <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <span class="navbar-brand">Rise of Kings</span>
+        </div>
+        <div class="collapse navbar-collapse">
+          <ul class="nav navbar-nav">
+            <li class="active"><a href="#lobby">Lobby Browser</a></li>
+            <li><a href="#host">Host Lobby</a></li>
+          </ul>
+        </div>
+      </div>
+    </div>
 
+    <div class="container">
+
+      <div class="starter-template">
+        <h1>Host a Match</h1>
+        <p class="lead">
+            Use this document as a way to quickly start any new project.<br>
+            All you get is this text and a mostly barebones HTML document.
+        </p>
+      </div>
+
+    </div>
+
+    <!-- HTML5 shim and Respond.js IE8 support of HTML5 elements and media queries -->
+    <!--[if lt IE 9]>
+      <script src="https://oss.maxcdn.com/html5shiv/3.7.2/html5shiv.min.js"></script>
+      <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
+    <![endif]-->
+
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
+    <script src="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.min.js"></script>
     <script src="http://cdn.peerjs.com/0.3/peer.min.js"></script>
-    <script type="text/javascript" src="/zogl/js/zogl.min.js"></script>
 
-    <script type="text/javascript" src="/js/net/config.js"></script>
-    <script type="text/javascript" src="/js/net/matchmaker.js"></script>
-    <script>
-        function submitForm() {
-            zogl.debug = true;
-
-            var data = document.getElementById("server-name");
-            if (!data.value) {
-                return;
-            }
-
-            var mm = new net.MatchMaker();
-            mm.createSocket(function() {
-                net.helpers.ajax("POST", net.config.AUTH_URL + "/match/", {
-                    onReady: function(resp) {
-                        console.log('Host ready?', resp);
-
-                        var elem = document.createElement("p");
-                        elem.innerHTML = 'Waiting for connections...';
-                        document.getElementById("server-name").parentNode.appendChild(elem);
-
-                        var handle = setInterval(function() {
-                            net.helpers.ajax("POST", net.config.AUTH_URL + "/ping/", {
-                                data: "id=" + mm.peerID,
-                                onFail: function(resp, status) {
-                                    clearInterval(handle);
-                                }
-                            });
-                        }, 200);
-                    },
-                    data: encodeURI("name=" + data.value + "&id=" + mm.peerID)
-                });
-            });
-        }
-    </script>
 </body>
 </html>
