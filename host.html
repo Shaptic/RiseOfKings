@@ -56,37 +56,18 @@
             top:1px;
         }
 
-        #lobby {
-            width: 100%;
-        }
-
         #lobby tr, #lobby td {
             border: 1px solid black;
-        }
-
-        #lobby tr:nth-child(:odd) {
-            background: gray;
-        }
-
-        #lobby tr:nth-child(:even) {
-            background: black;
         }
     </style>
 
 </head>
 <body>
-    <table id="lobby">
-        <caption><b>Lobby Browser</b></caption>
-        <tr>
-            <th>Name</th>
-            <th>ID</th>
-            <th>Players</th>
-        </tr>
-    </table>
-
-    <a class="button" id="host-btn" href="host.html">Host Game</a>
-    <a class="button" id="join-btn" href="javascript:;">Join Game</a>
-    <a class="button" id="join-btn" href="javascript:refresh();">Refresh</a>
+    <label>Server Name:<input type="text" id="server-name"></label><br />
+    <a class="button" id="host-btn" href="javascript:submitForm();">
+        Host Game
+    </a>
+    <a class="button" id="cancel-btn" href="index.html">Cancel</a>
 
     <script src="http://cdn.peerjs.com/0.3/peer.min.js"></script>
     <script type="text/javascript" src="/zogl/js/zogl.min.js"></script>
@@ -94,37 +75,37 @@
     <script type="text/javascript" src="/js/net/config.js"></script>
     <script type="text/javascript" src="/js/net/matchmaker.js"></script>
     <script>
-        window.onload = function() {
-            refresh();
-        };
+        function submitForm() {
+            zogl.debug = true;
 
-        function refresh() {
-            net.helpers.ajax("GET", net.config.AUTH_URL + "/match/", {
-                onReady: function(resp) {
+            var data = document.getElementById("server-name");
+            if (!data.value) {
+                return;
+            }
 
-                    console.log(resp);
+            var mm = new net.MatchMaker();
+            mm.createSocket(function() {
+                net.helpers.ajax("POST", net.config.AUTH_URL + "/match/", {
+                    onReady: function(resp) {
+                        console.log('Host ready?', resp);
 
-                    var elem = document.getElementById("lobby")
-                                       .getElementsByTagName("tbody")[0];
+                        var elem = document.createElement("p");
+                        elem.innerHTML = 'Waiting for connections...';
+                        document.getElementById("server-name").parentNode.appendChild(elem);
 
-                    elem.innerHTML = elem.rows[0].innerHTML;
-
-                    var json = JSON.parse(resp);
-                    for (var i in json["matches"]) {
-                        var peer = json["matches"][i];
-
-                        var dom = document.createElement("tr");
-                        dom.innerHTML =
-                            "<td>" + peer.name + "</td>" +
-                            "<td>" + peer.host.id + "</td>" +
-                            "<td>" + peer.players.length + "</td>";
-                        elem.appendChild(dom);
-                    }
-                }
+                        var handle = setInterval(function() {
+                            net.helpers.ajax("POST", net.config.AUTH_URL + "/ping/", {
+                                data: "id=" + mm.peerID,
+                                onFail: function(resp, status) {
+                                    clearInterval(handle);
+                                }
+                            });
+                        }, 200);
+                    },
+                    data: encodeURI("name=" + data.value + "&id=" + mm.peerID)
+                });
             });
         }
-
-
     </script>
 </body>
 </html>

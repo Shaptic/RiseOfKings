@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta content="utf-8" http-equiv="encoding">
+    <meta content="text/html;charset=utf-8" http-equiv="Content-Type">
+    <meta name="user-scalable" content="no">
+
+    <title>Rise of Kings</title>
+    <style type="text/css">
+        html {
+            -ms-touch-action: none;
+        }
+
+        canvas {
+            border: 1px solid black;
+        }
+
+        img {
+            display: none;
+        }
+
+        .button {
+            -moz-box-shadow: 0px 1px 0px 0px #bee2f9;
+            -webkit-box-shadow: 0px 1px 0px 0px #bee2f9;
+            box-shadow: 0px 1px 0px 0px #bee2f9;
+            background-color:#63b8ee;
+            -webkit-border-top-left-radius:0px;
+            -moz-border-radius-topleft:0px;
+            border-top-left-radius:0px;
+            -webkit-border-top-right-radius:0px;
+            -moz-border-radius-topright:0px;
+            border-top-right-radius:0px;
+            -webkit-border-bottom-right-radius:0px;
+            -moz-border-radius-bottomright:0px;
+            border-bottom-right-radius:0px;
+            -webkit-border-bottom-left-radius:0px;
+            -moz-border-radius-bottomleft:0px;
+            border-bottom-left-radius:0px;
+            text-indent:0px;
+            border:1px solid #3866a3;
+            display:inline-block;
+            color:#14396a;
+            font-family:Verdana;
+            font-size:15px;
+            font-weight:normal;
+            font-style:normal;
+            height:57px;
+            line-height:57px;
+            width:128px;
+            text-decoration:none;
+            text-align:center;
+        }.button:hover {
+            background-color:#438ccc;
+        }.button:active {
+            position:relative;
+            top:1px;
+        }
+    </style>
+
+</head>
+<body>
+    <img src="tank.png"></img>
+    <img src="grass.png"></img>
+    <img src="archer.png"></img>
+    <canvas id="webgl-canvas"></canvas>
+    <p>
+        <a onclick="refreshLobby();" href='#'>Refresh</a>
+    </p>
+    <div id="hosts"></div>
+
+    <script type="text/javascript" src="zogl/js/zogl.min.js"></script>
+
+    <script type="text/javascript" src="game/utilities.js"></script>
+    <script type="text/javascript" src="game/message.js"></script>
+    <script type="text/javascript" src="game/queue.js"></script>
+    <script type="text/javascript" src="game/network.js"></script>
+    <script type="text/javascript" src="game/map.js"></script>
+    <script type="text/javascript" src="game/projectile.js"></script>
+    <script type="text/javascript" src="game/unit.js"></script>
+    <script type="text/javascript" src="game/astar.js"></script>
+    <script type="text/javascript" src="game/squad.js"></script>
+    <script type="text/javascript" src="game/player.js"></script>
+    <script type="text/javascript" src="game/game.js"></script>
+
+    <script src="http://cdn.peerjs.com/0.3/peer.min.js"></script>
+</body>
+</html>

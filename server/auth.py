@@ -1,10 +1,26 @@
+'''
+Matchmaking back-end.
+
+Peers interact with the server in the following ways:
+    - Querying existing matches                     GET  /match/
+    - Creating a match                              POST /match/
+    - Joining a match                               POST /join/
+    - Starting a game from a multi-person match     POST /start/
+    - Ping status while in a match                  POST /ping/
+
+All peers in a match must periodically ping the server in order to validate
+that they are still online and in the match.
+'''
+
 import time
 from flask      import Flask, jsonify, make_response, request
 from flask_cors import cross_origin
 
 app = Flask(__name__)
 gamePeers = []
+matches = []
 
+# Colors that can be chosen by peers in a match.
 AVAILABLE_COLORS = {
     'blue':     True,
     'red':      True,
@@ -15,108 +31,97 @@ AVAILABLE_COLORS = {
 class Peer:
     def __init__(self, id_):
         self.id = id_
-        self.name = "Peer " + str(id_)
         self.last_ping = time.time()
-        self.commands = []
         self.color = ''
 
     def asJSON(self):
         return {
             'id':       self.id,
-            'color':    self.color,
-            'name':     self.name
+            'color':    self.color
         }
 
-@app.route('/register/<peer_id>')
+class Match:
+    def __init__(self, name, host):
+        self.lobbyName = name
+        self.host = host
+        self.peers = []
+        self.colors = dict(AVAILABLE_COLORS)
+        self.addPeer(host)
+
+    def addPeer(self, peer):
+        # Assign a color to the peer.
+        peer.color = [k for k, v in self.colors.iteritems() if v]
+        if not peer.color: return False
+        else: peer.color = peer.color[0]
+
+        global gamePeers
+        gamePeers.append(peer)
+        self.peers.append(peer)
+
+    def asJSON(self):
+        return {
+            'name': self.lobbyName,
+            'host': self.host.asJSON(),
+            'players': [x.asJSON() for x in self.peers]
+        }
+
+@app.route('/match/', methods=[ 'GET', 'POST' ])
 @cross_origin()
-def register_peer(peer_id):
+def match():
+    global matches
+
+    validateMatches()
+
+    # A GET request indicates that someone wants a list of existing matches.
+    if request.method == 'GET':
+        return make_response(
+            jsonify({
+                'matches': [
+                    x.asJSON() for x in matches
+                ]
+            }),
+            200
+        )
+
+    # A POST request is someone creating a new match.
+    elif request.method == 'POST':
+        peerObj = Peer(request.form['id'])
+        match   = Match(request.form['name'], peerObj)
+        matches.append(match)
+
+        return 'Match initialized.'
+
+@app.route('/ping/', methods=[ 'POST' ])
+@cross_origin()
+def ping():
+    t = time.time()
     global gamePeers
 
-    if [p for p in gamePeers if p.id == peer_id]:
-        return make_response('Already registered.', 402)
-
-    p = Peer(peer_id)
-    gamePeers.append(p)
-
-    col = None
-    for k, v in AVAILABLE_COLORS.iteritems():
-        if AVAILABLE_COLORS[k]:
-            col = k
-            AVAILABLE_COLORS[k] = False
+    for p in gamePeers:
+        if p.id == request.form['id']:
+            p.last_ping = t
             break
     else:
-        return make_response('nope', 404)
+        return make_response('No such peer.', 404)
 
-    if not col.strip():
-        raise Exception("Fuck this bullshit")
+    validateMatches()
+    return 'Ping successful.'
 
-    print "Giving", col, "to", peer_id
-    p.color = col
-
-    return make_response(jsonify({'color': col}), 200)
-
-@app.route('/peers/', methods=[ 'GET' ])
-@cross_origin()
-def peers():
-    # Find all peers that haven't pinged us back.
+def validateMatches():
+    global matches
     global gamePeers
+
     t = time.time()
-    for gp in gamePeers:
-        if t - gp.last_ping >= 5 and gp.color:
-            AVAILABLE_COLORS[gp.color] = True
 
-    gamePeers = [p for p in gamePeers if time.time() - p.last_ping < 5]
+    # Find all peers that haven't pinged us back recently and remove them
+    # from their respective matches.
+    for m in matches:
+        m.peers = [p for p in m.peers if t - p.last_ping < 5]
+    gamePeers = [p for p in gamePeers if t - p.last_ping < 5]
 
-    # JSON response of peers
-    return make_response((
-        jsonify({
-            'peers': [
-                x.asJSON() for x in gamePeers
-            ]
-        }),
-        200
-    ))
-
-@app.route('/ping/<peer_id>', methods=[ 'GET' ])
-@cross_origin()
-def ping(peer_id):
-    peer = [x for x in gamePeers if x.id == peer_id]
-    if not peer:
-        return register_peer(peer_id)
-    peer[0].last_ping = time.time()
-
-    return make_response('Ping successful.', 200)
-
-@app.route('/connect/<from_id>/<to_id>', methods=[ 'GET' ])
-@cross_origin()
-def connect(from_id, to_id):
-    from_peer = [x for x in gamePeers if x.id == from_id]
-    to_peer   = [x for x in gamePeers if x.id == to_id]
-
-    if not from_peer or not to_peer:
-        return make_response('Bad ID.', 404, {
-            'Access-Control-Allow-Origin': '*'
-        })
-
-    to_peer[0].commands.append({
-        'type': 'connect',
-        'from': from_peer[0].id
-    })
-
-    return make_response('Ready.', 200)
-
-@app.route('/commands/<peer_id>', methods=[ 'GET', 'DELETE' ])
-@cross_origin(methods=[ 'GET', 'DELETE' ])
-def commands(peer_id):
-    peer = [x for x in gamePeers if x.id == peer_id]
-    if not peer:
-        return make_response('Bad ID.', 404)
-    peer = peer[0]
-
-    if request.method == 'DELETE' and peer.commands:
-        peer.commands.pop(0)
-
-    return make_response(jsonify({'commands': peer.commands}), 200)
+    # Removes all matches with no host.
+    matches = [m for m in matches if m.host in m.peers]
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', debug=True)
+
