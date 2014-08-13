@@ -37,7 +37,7 @@
       <div class="starter-template">
         <h1>Host a Match</h1>
 
-        <form class="form-horizontal">
+        <form class="form-horizontal" id="host-form">
           <div class="form-group">
             <label for="name" class="col-sm-2 control-label">Server Name:</label>
             <div class="col-sm-6">
@@ -50,22 +50,25 @@
             <label for="pcount" class="col-sm-2 control-label">Max Players:</label>
             <div class="col-sm-2">
               <input type="number" id="pcount" class="form-control"
-                     placeholder="Maximum Number of Players" value="32">
+                     value="2" min="1">
             </div>
           </div>
 
           <div class="form-group">
             <label class="col-sm-2 control-label">Unit Loadout:</label>
             <div class="col-sm-2">
-              <input type="number" id="unit-knight" class="form-control">
+              <input type="number" id="unit-knight" class="form-control"
+                     min="0" value="0" >
               <span class="help-block">Knights</span>
             </div>
             <div class="col-sm-2">
-              <input type="number" id="unit-knight" class="form-control">
+              <input type="number" id="unit-spear" class="form-control"
+                     min="0" value="0" >
               <span class="help-block">Spearmen</span>
             </div>
             <div class="col-sm-2">
-              <input type="number" id="unit-knight" class="form-control">
+              <input type="number" id="unit-archer" class="form-control"
+                     min="0" value="0" >
               <span class="help-block">Archers</span>
             </div>
           </div>
@@ -75,11 +78,15 @@
               Maximum Units:
             </label>
             <div class="col-sm-2">
-              <input type="number" id="unit-max" class="form-control">
+              <input type="number" id="unit-max" class="form-control"
+                     value="0" min="0">
             </div>
           </div>
 
-          <button type="submit" class="btn btn-default btn-lg" style="width: 10em">Host Match</button>
+          <button type="submit" class="btn btn-default btn-lg" id="host-btn"
+                  style="width: 10em">Host Match</button>
+
+           <div id="status"></div>
         </form>
       </div>
 
@@ -93,7 +100,87 @@
 
     <script src="//ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
     <script src="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.min.js"></script>
-    <script src="http://cdn.peerjs.com/0.3/peer.min.js"></script>
+    <!-- script src="http://cdn.peerjs.com/0.3/peer.min.js"></script -->
+    <script src="/zogl/js/zogl.min.js"></script>
 
+    <script src="/js/net/peer.js"></script>
+    <script src="/js/net/config.js"></script>
+    <script src="/js/net/matchmaker.js"></script>
+
+    <script>
+      function submitForm(evt) {
+        zogl.debug = true;
+
+        var name = "";
+        var msg = "";
+
+        if ($("#name").val() == "") {
+          name = "name";
+          msg  = "server needs a name.";
+
+        } else if (parseInt($("#unit-max").val()) <= 0) {
+          name = "unit-max";
+          msg  = "match must have units";
+        }
+
+        if (name !== "") {
+          $("#" + name).parents(".form-group").addClass("has-error");
+          $("#status").text("Invalid server settings: " + msg).css("color", "red");
+          evt.preventDefault();
+          return;
+        }
+
+        $("#status").text("Creating socket...");
+
+        var mm = new net.MatchMaker();
+        mm.createSocket(function() {
+          net.helpers.ajax("POST", net.config.AUTH_URL + "/match/", {
+            onReady: function(resp) {
+
+              var json = JSON.parse(resp);
+              $("#status").text($("#status").text() + resp["status"]);
+
+              var handle = setInterval(function() {
+                $("#status").text("Waiting for connections...");
+
+                net.helpers.ajax("POST", net.config.AUTH_URL + "/ping/", {
+                  data: "id=" + mm.peerID,
+                  onFail: function(resp, status) {
+                    clearInterval(handle);
+                  }
+                });
+              }, 200);
+            },
+            data: encodeURI("name=" + $('#name').val() + "&id=" + mm.peerID)
+          });
+        });
+
+        evt.preventDefault();
+      }
+
+      $(document).ready(function() {
+        var all = [
+          $('#unit-knight'),
+          $('#unit-spear'),
+          $('#unit-archer')
+        ];
+
+        var handler = function() {
+          var sum = all.reduce(function(prev, curr, i, arr) {
+            return parseInt(prev) + parseInt(curr.val());
+          }, 0);
+
+          if (parseInt($('#unit-max').val()) < sum) {
+            $('#unit-max').val(sum).attr('min', sum);
+          }
+        };
+
+        for (var i in all) {
+          all[i].on('change', handler);
+        }
+
+        $('#host-form').on('submit', submitForm);
+      });
+    </script>
 </body>
 </html>

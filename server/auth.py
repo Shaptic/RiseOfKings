@@ -89,7 +89,10 @@ def match():
         match   = Match(request.form['name'], peerObj)
         matches.append(match)
 
-        return 'Match initialized.'
+        return make_response(jsonify({
+            'status':   'initialized',
+            'data':     match.asJSON()
+        }), 200)
 
 @app.route('/ping/', methods=[ 'POST' ])
 @cross_origin()
