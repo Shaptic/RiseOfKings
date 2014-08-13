@@ -87,6 +87,11 @@ net.MatchMaker.prototype.createSocket = function(callback) {
     });
 
     this.socket.on("open", function(id) {
+        if (id === null) {
+            throw("Socket error.");
+            return;
+        }
+
         scope.onSocketOpen(id);
         callback();
     });
