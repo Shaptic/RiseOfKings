@@ -28,23 +28,32 @@ AVAILABLE_COLORS = {
     'yellow':   True
 }
 
+# Timeout in seconds.
+TIMEOUT_THRESHOLD = 15
+
 class Peer:
-    def __init__(self, id_):
+    def __init__(self, id_, nick, units=None):
         self.id = id_
+        self.nick = nick
         self.last_ping = time.time()
         self.color = ''
+        self.units = units or {}
 
     def asJSON(self):
         return {
             'id':       self.id,
-            'color':    self.color
+            'nick':     self.nick,
+            'color':    self.color,
+            'units':    self.units
         }
 
 class Match:
-    def __init__(self, name, host):
+    def __init__(self, name, host, pcount, maxUnits):
         self.lobbyName = name
         self.host = host
         self.peers = []
+        self.playerCount = pcount or 1
+        self.maxUnits = maxUnits or 5
         self.colors = dict(AVAILABLE_COLORS)
         self.addPeer(host)
 
@@ -61,6 +70,8 @@ class Match:
     def asJSON(self):
         return {
             'name': self.lobbyName,
+            'playerCount': self.playerCount,
+            'maxUnits': self.maxUnits,
             'host': self.host.asJSON(),
             'players': [x.asJSON() for x in self.peers]
         }
@@ -85,8 +96,15 @@ def match():
 
     # A POST request is someone creating a new match.
     elif request.method == 'POST':
-        peerObj = Peer(request.form['id'])
-        match   = Match(request.form['name'], peerObj)
+        peerObj = Peer(request.form['id'],
+                       request.form['nick'], {
+            'knights':  request.form['knights'],
+            'spears':   request.form['spears'],
+            'archers':  request.form['archers']
+        })
+        match = Match(request.form['name'], peerObj,
+                      request.form['pcount'],
+                      request.form['maxunit'])
         matches.append(match)
 
         return make_response(jsonify({
@@ -119,8 +137,8 @@ def validateMatches():
     # Find all peers that haven't pinged us back recently and remove them
     # from their respective matches.
     for m in matches:
-        m.peers = [p for p in m.peers if t - p.last_ping < 5]
-    gamePeers = [p for p in gamePeers if t - p.last_ping < 5]
+        m.peers = [p for p in m.peers if t - p.last_ping < TIMEOUT_THRESHOLD]
+    gamePeers = [p for p in gamePeers if t - p.last_ping < TIMEOUT_THRESHOLD]
 
     # Removes all matches with no host.
     matches = [m for m in matches if m.host in m.peers]
