@@ -8,59 +8,286 @@
     <title>Rise of Kings</title>
     <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css">
     <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap-theme.min.css">
-    <link rel="stylesheet" href="/css/style.css" type="text/css">
+    <link rel="stylesheet" href="/css/style.css">
 
+    <style>
+      .loadout {
+        margin-left: 0;
+        padding-left: 0;
+      }
+
+      .player:nth-child(even) {
+        background-color: #DDD;
+      }
+
+      .color {
+        border: 1px solid black;
+        padding-left: 16px;
+      }
+
+      #chat-inset {
+        background-color: #DDD;
+        padding: 10px;
+        border: 3px inset gray;
+      }
+
+      #browser, #host, #active-lobby {
+        display: none;
+      }
+
+      #lobby tr:nth-child(even) {
+        background-color: #DDD;
+      }
+
+      .active-match {
+        background-color: #63B8EE !important;
+      }
+    </style>
 </head>
+
 <body>
-    <table id="lobby">
-        <caption><b>Lobby Browser</b></caption>
-        <tr>
-            <th>Name</th>
-            <th>ID</th>
+    <div class="navbar navbar-inverse navbar-fixed-top" role="navigation">
+      <div class="container">
+        <div class="navbar-header">
+          <span class="navbar-brand">
+            <a href="/" style="text-decoration: none;">Rise of Kings</a>
+          </span>
+        </div>
+        <div class="collapse navbar-collapse">
+          <ul class="nav navbar-nav">
+            <li class="active"><a href="#browser">Lobby Browser</a></li>
+            <li><a href="#host">Host Lobby</a></li>
+            <li><a href="#active-lobby">Match</a></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="container" id="browser">
+      <div class="starter-template">
+        <h1>Lobby Browser</h1>
+
+        <table id="lobby">
+          <tr>
+            <th>Lobby Name</th>
+            <th>UUID</th>
             <th>Players</th>
-        </tr>
-    </table>
+            <th>Unit Count</th>
+          </tr>
+        </table>
 
-    <a class="button" id="host-btn" href="host.html">Host Game</a>
-    <a class="button" id="join-btn" href="javascript:;">Join Game</a>
-    <a class="button" id="join-btn" href="javascript:refresh();">Refresh</a>
+        <button class="button" id="host-btn" onclick="navigate('host');">Host Game</button>
+        <button class="button" id="join-btn">Join Game</button>
+        <button class="button" id="refresh-btn" onclick="refreshBrowser();">Refresh</button>
+      </div>
+    </div>
 
+    <div class="container" id="host">
+      <div class="starter-template">
+        <h1>Host a Match</h1>
+
+        <form class="form-horizontal" id="host-form">
+          <div class="form-group">
+            <label for="name" class="col-sm-2 control-label">Nickname:</label>
+            <div class="col-sm-6">
+              <input type="text" id="nick" class="form-control"
+                     placeholder="Nick Name" value="RoK Player">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="name" class="col-sm-2 control-label">Server Name:</label>
+            <div class="col-sm-6">
+              <input type="text" id="name" class="form-control"
+                     placeholder="Server Name" value="Rise of Kings Server">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="pcount" class="col-sm-2 control-label">Max Players:</label>
+            <div class="col-sm-2">
+              <input type="number" id="pcount" class="form-control"
+                     value="2" min="1">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="col-sm-2 control-label">Unit Loadout:</label>
+            <div class="col-sm-2">
+              <input type="number" id="unit-knight" class="form-control"
+                     min="0" value="0">
+              <span class="help-block">Knights</span>
+            </div>
+            <div class="col-sm-2">
+              <input type="number" id="unit-spear" class="form-control"
+                     min="0" value="0">
+              <span class="help-block">Spearmen</span>
+            </div>
+            <div class="col-sm-2">
+              <input type="number" id="unit-archer" class="form-control"
+                     min="0" value="0">
+              <span class="help-block">Archers</span>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="col-sm-2 control-label" for="unit-max">
+              Maximum Units:
+            </label>
+            <div class="col-sm-2">
+              <input type="number" id="unit-max" class="form-control"
+                     value="5" min="0">
+            </div>
+          </div>
+
+          <button type="submit" class="button" id="host-btn"
+                  style="width: 10em">Host Match</button>
+
+           <div id="status"></div>
+        </form>
+      </div>
+    </div>
+
+    <div class="container" id="active-lobby">
+
+      <div class="starter-template">
+        <h1>Lobby Name</h1>
+
+        <div class="row">
+          <div class="col-sm-7" id="player-list"
+               style="border: 1px solid black;">
+
+            <h4>Players</h4>
+
+            <div class="row player" style="text-align: left;">
+              <div class="col-sm-6">
+                halcyon
+                <span class="color"></span>
+              </div>
+              <div class="col-sm-2 loadout">
+                5 knights
+              </div>
+              <div class="col-sm-2 loadout">
+                5 spears
+              </div>
+              <div class="col-sm-2 loadout">
+                5 archers
+              </div>
+            </div>
+
+            <div class="row player" style="text-align: left;">
+              <div class="col-sm-6">
+                zhov
+                <span class="color"></span>
+              </div>
+              <div class="col-sm-2 loadout">
+                5 knights
+              </div>
+              <div class="col-sm-2 loadout">
+                5 spears
+              </div>
+              <div class="col-sm-2 loadout">
+                5 archers
+              </div>
+            </div>
+
+            <div class="row player" style="text-align: left;">
+              <div class="col-sm-6">
+                zidsal
+                <span class="color"></span>
+              </div>
+              <div class="col-sm-2 loadout">
+                5 knights
+              </div>
+              <div class="col-sm-2 loadout">
+                5 spears
+              </div>
+              <div class="col-sm-2 loadout">
+                5 archers
+              </div>
+            </div>
+          </div>
+
+          <div class="col-sm-5" id="match-rules"
+             style="border: 1px solid black;">
+
+            <h4>Rules</h4>
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col-sm-7" id="chat"
+               style="border: 1px solid black; margin-top: 5px; height: 400px">
+
+            <h4>Chat</h4>
+
+            <div id="chat-inset" style="height: 90%;">
+              <div class="row" style="text-align: left;">
+                <div class="col-sm-2 chat-nick">
+                  <span style="color: red;">zidsal</span>
+                </div>
+                <div class="col-sm-10 chat-text">
+                  <span>i like dicks</span>
+                </div>
+              </div>
+
+              <div class="row" style="text-align: left;">
+                <div class="col-sm-2 chat-nick">
+                  <span style="color: blue;">halcyon</span>
+                </div>
+                <div class="col-sm-10 chat-text">
+                  <span>i know</span>
+                </div>
+              </div>
+
+              <div style="text-align: left;">
+                <input type="text" style="width: 100%; margin-top: 10px"
+                       placeholder="Chat here...">
+                </input>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-sm-5" id="network-status"
+               style="border: 1px solid black; margin-top: 5px">
+
+            <h4>Network Log</h4>
+          </div>
+        </div>
+
+        <div class="navigation" style="text-align: left; margin-top: 2em;">
+          <button class="button">Start Game</button>
+          <button class="button">Leave Lobby</button>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- HTML5 shim and Respond.js IE8 support of HTML5 elements and media queries -->
+    <!--[if lt IE 9]>
+      <script src="https://oss.maxcdn.com/html5shiv/3.7.2/html5shiv.min.js"></script>
+      <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
+    <![endif]-->
+
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
     <script src="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.min.js"></script>
     <script src="http://cdn.peerjs.com/0.3/peer.min.js"></script>
-    <script type="text/javascript" src="/zogl/js/zogl.min.js"></script>
+    <script src="/zogl/js/zogl.min.js"></script>
 
-    <script type="text/javascript" src="/js/net/config.js"></script>
-    <script type="text/javascript" src="/js/net/matchmaker.js"></script>
+    <script src="/js/net/config.js"></script>
+    <script src="/js/net/matchmaker.js"></script>
+
+    <script src="/js/app/index.js"></script>
+    <script src="/js/app/host.js"></script>
+
     <script>
-        window.onload = function() {
-            refresh();
-        };
+      $(document).ready(function() {
+        zogl.debug = true;
+        refreshBrowser();
+        navigate("browser");
 
-        function refresh() {
-            net.helpers.ajax("GET", net.config.AUTH_URL + "/match/", {
-                onReady: function(resp) {
-
-                    console.log(resp);
-
-                    var elem = document.getElementById("lobby")
-                                       .getElementsByTagName("tbody")[0];
-
-                    elem.innerHTML = elem.rows[0].innerHTML;
-
-                    var json = JSON.parse(resp);
-                    for (var i in json["matches"]) {
-                        var peer = json["matches"][i];
-
-                        var dom = document.createElement("tr");
-                        dom.innerHTML =
-                            "<td>" + peer.name + "</td>" +
-                            "<td>" + peer.host.id + "</td>" +
-                            "<td>" + peer.players.length + "</td>";
-                        elem.appendChild(dom);
-                    }
-                }
-            });
-        }
+        $('#host-form').on('submit', hostGame);
+      });
     </script>
 </body>
 </html>
