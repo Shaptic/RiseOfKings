@@ -50,6 +50,8 @@ img {
     text-align:center;
 }.button:hover {
     background-color:#438ccc;
+    text-decoration: none;
+    color: black;
 }.button:active {
     position:relative;
     top:1px;
