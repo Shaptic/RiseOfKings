@@ -56,9 +56,9 @@ net.helpers.ajax = function(method, URL, options) {
  *  This object is responsible for initial handshaking with the auth server,
  *  and presenting itself as a "lobby" for other peers to join.
  *
- *  Once peers join the game, this object is no longer necessary (as of the
- *  current design). In the future, it may be maintained in order to preserve
- *  state and allow mid-game joins to occur.
+ *  Once peers join the game and the game begins, this object is no longer
+ *  necessary (as of the current design). In the future, it may be maintained in
+ *  order to preserve state and allow mid-game joins to occur.
  *
  *  The auth server expects pings to occur between the peer and the server. If
  *  a certain threshold is exceeded without a ping (several seconds or more),
@@ -116,7 +116,7 @@ net.MatchMaker.prototype.onSocketOpen = function(id) {
     var scope = this;
 
     this.peerID = id;
-    this.state  = net.MatchMakerState.CONNECTING;
+    this.state  = net.MatchMakerState.CONNECTING;/*
 
     net.helpers.ajax("POST", net.config.AUTH_URL + "/register/", {
         onReady: function(resp) {
@@ -130,7 +130,7 @@ net.MatchMaker.prototype.onSocketOpen = function(id) {
             console.log("Established initial connection as", json["color"]);
         },
         data: "id=" + id
-    });
+    });*/
 };
 
 net.MatchMaker.prototype.setInitialArmyPosition = function(data) {
@@ -142,6 +142,77 @@ net.MatchMaker.prototype.setInitialArmyPosition = function(data) {
  */
 net.MatchMaker.prototype.onSocketConnection = function(connection) {
 
+};
+
+/*
+ * Updates the lobby.
+ *  When a player is in a lobby, updates need to occur in order to update current
+ *  match state, including things such as:
+ *
+ *      - existing players
+ *      - chat messages
+ *      - lobby rules       [peers only]
+ *      - joining players   [hosts only]
+ *
+ *  In order to minimize server work, we do this updating by performing a GET
+ *  request on the /match/ URL, just like the server browser function
+ *  `refreshLobby()`. This gives all of the data we need.
+ *
+ *  After that, we determine which lobby is the one we're in, and use that data
+ *  to display updated information.
+ */
+net.MatchMaker.prototype.lobbyTick = function() {
+    var scope = this;
+
+    net.helpers.ajax("GET", net.config.AUTH_URL + "/match/", {
+        onReady: function(resp) {
+            var json = JSON.parse(resp);
+            var lobby = null;
+
+            // find our lobby.
+            for (var i in json.matches) {
+                var match = json.matches[i];
+                for (var j in match.players) {
+                    if (match.players[j].id === scope.peerID) {
+                        lobby = match;
+                        break;
+                    }
+                }
+            }
+
+            if (!lobby) {
+                throw("oh no :(");
+            }
+
+            var pl = $("#player-list");
+            for (var i in match.players) {
+
+                var a = $("<div/>").addClass("row player")
+                                   .css("text-align", "left");
+                var b = $("<div/>").addClass("col-sm-6").html(
+                    match.players[i].nick +
+                    '<span class="color" style="background-color: "' +
+                    match.players[i].color + '"></span>'
+                );
+                var c = $("<div/>").addClass("col-sm-2").text(
+                    match.players[i].units.knights + " knights"
+                );
+                var d = $("<div/>").addClass("col-sm-2").text(
+                    match.players[i].units.spears + " spears"
+                );
+                var e = $("<div/>").addClass("col-sm-2").text(
+                    match.players[i].units.archers + " archers"
+                );
+
+                a.append(b);
+                a.append(c);
+                a.append(d);
+                a.append(e);
+
+                pl.append(a);
+            }
+        }
+    });
 };
 
 
