@@ -26,10 +26,12 @@ function refreshBrowser() {
         var dom = $("<tr/>").on("click", function(evt) {
           if ($(this).hasClass("active-match")) {
             $("#lobby tr").removeClass("active-match");
+            $("#join-btn").attr("disabled", true);
 
           } else {
             $("#lobby tr").removeClass("active-match");
             $(this).addClass("active-match");
+            $("#join-btn").attr("disabled", false);
           }
         }).html(
           "<td>" + peer.name + "</td>" +
