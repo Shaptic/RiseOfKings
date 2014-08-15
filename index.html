@@ -23,6 +23,7 @@
       .color {
         border: 1px solid black;
         padding-left: 16px;
+        margin-left: 5px;
       }
 
       #chat-inset {
@@ -41,6 +42,10 @@
 
       .active-match {
         background-color: #63B8EE !important;
+      }
+
+      #network-status {
+        max-height: 500px;
       }
     </style>
 </head>
@@ -77,7 +82,7 @@
         </table>
 
         <button class="button" id="host-btn" onclick="navigate('host');">Host Game</button>
-        <button class="button" id="join-btn">Join Game</button>
+        <button class="button" id="join-btn" disabled>Join Game</button>
         <button class="button" id="refresh-btn" onclick="refreshBrowser();">Refresh</button>
       </div>
     </div>
@@ -158,54 +163,6 @@
                style="border: 1px solid black;">
 
             <h4>Players</h4>
-
-            <div class="row player" style="text-align: left;">
-              <div class="col-sm-6">
-                halcyon
-                <span class="color"></span>
-              </div>
-              <div class="col-sm-2 loadout">
-                5 knights
-              </div>
-              <div class="col-sm-2 loadout">
-                5 spears
-              </div>
-              <div class="col-sm-2 loadout">
-                5 archers
-              </div>
-            </div>
-
-            <div class="row player" style="text-align: left;">
-              <div class="col-sm-6">
-                zhov
-                <span class="color"></span>
-              </div>
-              <div class="col-sm-2 loadout">
-                5 knights
-              </div>
-              <div class="col-sm-2 loadout">
-                5 spears
-              </div>
-              <div class="col-sm-2 loadout">
-                5 archers
-              </div>
-            </div>
-
-            <div class="row player" style="text-align: left;">
-              <div class="col-sm-6">
-                zidsal
-                <span class="color"></span>
-              </div>
-              <div class="col-sm-2 loadout">
-                5 knights
-              </div>
-              <div class="col-sm-2 loadout">
-                5 spears
-              </div>
-              <div class="col-sm-2 loadout">
-                5 archers
-              </div>
-            </div>
           </div>
 
           <div class="col-sm-5" id="match-rules"
@@ -257,7 +214,7 @@
 
         <div class="navigation" style="text-align: left; margin-top: 2em;">
           <button class="button">Start Game</button>
-          <button class="button">Leave Lobby</button>
+          <button class="button" onclick="leaveLobby();">Leave Lobby</button>
         </div>
 
       </div>
