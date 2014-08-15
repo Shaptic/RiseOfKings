@@ -47,11 +47,24 @@ function hostGame(evt) {
   $("#status").text("Creating socket...");
 
   var mm = new net.MatchMaker();
+
+  var playerObject = {
+    "name":     $("#name").val(),
+    "nick":     $("#nick").val(),
+    "pcount":   $("#pcount").val(),
+    "id":       mm.peerID,
+    "maxunit":  $("#unit-max").val(),
+    "knights":  $("#unit-knight").val(),
+    "spears":   $("#unit-spear").val(),
+    "archers":  $("#unit-archer").val()
+  }
+
   mm.createSocket(function() {
+    playerObject.id = mm.peerID;
     net.helpers.ajax("POST", net.config.AUTH_URL + "/match/", {
       onReady: function(resp) {
-
         var json = JSON.parse(resp);
+
         $("#status").text($("#status").text() + resp["status"]);
 
         var handle = setInterval(function() {
@@ -60,32 +73,40 @@ function hostGame(evt) {
           net.helpers.ajax("POST", net.config.AUTH_URL + "/ping/", {
             data: "id=" + mm.peerID,
             onFail: function(resp, status) {
+              $("#network-status").append(
+                $("<span/>").css("color", "red").css("display", "block")
+                            .text("Connection to authorization server lost...")
+              );
               clearInterval(handle);
             }
           });
         }, 200);
 
-        setInterval(function() {
-          mm.lobbyTick();
+        var i = setInterval(function() {
+          if (!mm.lobbyTick()) clearInterval(i);
         }, 200);
       },
-      data: jQuery.param({
-        "name":     $("#name").val(),
-        "nick":     $("#nick").val(),
-        "pcount":   $("#pcount").val(),
-        "id":       mm.peerID,
-        "maxunit":  $("#unit-max").val(),
-        "knights":  $("#unit-knight").val(),
-        "spears":   $("#unit-spear").val(),
-        "archers":  $("#unit-archer").val()
-      })
+      data: jQuery.param(playerObject)
     });
   });
 
   navigate("active-lobby");
+  $("#player-list").empty()
+                   .append("<h4>Player List</h4>")
+                   .append(mm.insertPlayer({
+      "nick": playerObject.nick,
+      "color": "blue",
+      "units": {
+        "knights": playerObject.knights,
+        "spears" : playerObject.spears,
+        "archers": playerObject.archers,
+      }
+    })
+  );
+
   evt.preventDefault();
 }
 
-function lobbyCommands() {
+function leaveLobby() {
 
 }

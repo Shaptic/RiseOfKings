@@ -163,6 +163,7 @@ net.MatchMaker.prototype.onSocketConnection = function(connection) {
  */
 net.MatchMaker.prototype.lobbyTick = function() {
     var scope = this;
+    var good  = true;
 
     net.helpers.ajax("GET", net.config.AUTH_URL + "/match/", {
         onReady: function(resp) {
@@ -181,38 +182,57 @@ net.MatchMaker.prototype.lobbyTick = function() {
             }
 
             if (!lobby) {
-                throw("oh no :(");
+                $("#network-status").append(
+                    $("<span/>").css("color", "red").css("display", "block")
+                                .text("Lost connection to server.")
+                );
+                good = false;
+                return;
             }
 
-            var pl = $("#player-list");
+            var before = $("#player-list").length;
+
+            var pl = $("#player-list").empty().append("<h4>Player List</h4>");
             for (var i in match.players) {
-
-                var a = $("<div/>").addClass("row player")
-                                   .css("text-align", "left");
-                var b = $("<div/>").addClass("col-sm-6").html(
-                    match.players[i].nick +
-                    '<span class="color" style="background-color: "' +
-                    match.players[i].color + '"></span>'
-                );
-                var c = $("<div/>").addClass("col-sm-2").text(
-                    match.players[i].units.knights + " knights"
-                );
-                var d = $("<div/>").addClass("col-sm-2").text(
-                    match.players[i].units.spears + " spears"
-                );
-                var e = $("<div/>").addClass("col-sm-2").text(
-                    match.players[i].units.archers + " archers"
-                );
-
-                a.append(b);
-                a.append(c);
-                a.append(d);
-                a.append(e);
-
-                pl.append(a);
+                pl.append(scope.insertPlayer(match.players[i]));
             }
+
+            if ($("#player-list").length > before) {
+                $("#network-status").append("Player joined.");
+            } else if ($("#player-list").length < before) {
+                $("#network-status").append("Player left.");
+            }
+
+            var rl = $("#match-rules").empty().append("<h4>Rules</h4>");
+            var row = $("<div/>").addClass("row");
+            var col1= $("<div/>").addClass("col-sm-3").html("<b>Players</b>");
+            var col2= $("<div/>").addClass("col-sm-3").text(lobby.playerCount);
+
+            rl.append(row.append(col1, col2));
         }
     });
+
+    return good;
 };
 
+net.MatchMaker.prototype.insertPlayer = function(obj) {
+    var a = $("<div/>").addClass("row player")
+                       .css("text-align", "left");
+    var b = $("<div/>").addClass("col-sm-6").html(
+        obj.nick + '<span class="color" style="background-color: ' +
+        obj.color + '"></span>'
+    );
+    var c = $("<div/>").addClass("col-sm-2").text(
+        obj.units.knights + " knights"
+    );
+    var d = $("<div/>").addClass("col-sm-2").text(
+        obj.units.spears + " spears"
+    );
+    var e = $("<div/>").addClass("col-sm-2").text(
+        obj.units.archers + " archers"
+    );
+    var f = $("<div/>").attr("id", obj.id).css("display", "none");
+
+    return a.append(b, c, d, e, f);
+};
 
