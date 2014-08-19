@@ -26,12 +26,6 @@
         margin-left: 5px;
       }
 
-      #chat-inset {
-        background-color: #DDD;
-        padding: 10px;
-        border: 3px inset gray;
-      }
-
       #browser, #host, #active-lobby {
         display: none;
       }
@@ -180,8 +174,7 @@
 
             <div id="chat-inset" style="height: 90%;">
               <div style="text-align: left;">
-                <input type="text" style="width: 100%; margin-top: 10px"
-                       id="chat-input" placeholder="Chat here...">
+                <input type="text" class="col-sm-12" id="chat-input" placeholder="Chat here...">
                 </input>
               </div>
             </div>
@@ -214,6 +207,7 @@
     <script src="/zogl/js/zogl.min.js"></script>
 
     <script src="/js/net/config.js"></script>
+    <script src="/js/net/helpers.js"></script>
     <script src="/js/net/matchmaker.js"></script>
 
     <script src="/js/app/errors.js"></script>
