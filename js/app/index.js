@@ -27,15 +27,25 @@ function refreshBrowser() {
           if ($(this).hasClass("active-match")) {
             $("#lobby tr").removeClass("active-match");
             $("#join-btn").attr("disabled", true);
+            $("#join-btn").off("click");
 
           } else {
+            var row = $(this);
+
             $("#lobby tr").removeClass("active-match");
-            $(this).addClass("active-match");
+            row.addClass("active-match");
             $("#join-btn").attr("disabled", false);
+            $("#join-btn").on("click", function(evt) {
+              var mm = new net.MatchMaker();
+              mm.createSocket(function() {
+                mm.joinLobby(mm.peerID, row.find('.host-id').text(),
+                             $("#network-status"));
+              });
+            });
           }
         }).html(
           "<td>" + peer.name + "</td>" +
-          "<td>" + peer.host.id + "</td>" +
+          "<td class='host-id'>" + peer.host.id + "</td>" +
           "<td>" + peer.players.length + "/" + peer.playerCount + "</td>" +
           "<td>" + peer.maxUnits + "</td>"
         );

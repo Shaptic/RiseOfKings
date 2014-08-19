@@ -59,38 +59,15 @@ function hostGame(evt) {
     "archers":  $("#unit-archer").val()
   }
 
+  mm.sessionData.host = true;
+  mm.sessionData.matchData = playerObject;
   mm.createSocket(function() {
+    navigate("active-lobby");
     playerObject.id = mm.peerID;
-    net.helpers.ajax("POST", net.config.AUTH_URL + "/match/", {
-      onReady: function(resp) {
-        var json = JSON.parse(resp);
-
-        $("#status").text($("#status").text() + resp["status"]);
-
-        var handle = setInterval(function() {
-          $("#status").text("Waiting for connections...");
-
-          net.helpers.ajax("POST", net.config.AUTH_URL + "/ping/", {
-            data: "id=" + mm.peerID,
-            onFail: function(resp, status) {
-              $("#network-status").append(
-                $("<span/>").css("color", "red").css("display", "block")
-                            .text("Connection to authorization server lost...")
-              );
-              clearInterval(handle);
-            }
-          });
-        }, 200);
-
-        var i = setInterval(function() {
-          if (!mm.lobbyTick()) clearInterval(i);
-        }, 200);
-      },
-      data: jQuery.param(playerObject)
-    });
+    mm.createLobby(playerObject, $("#status"), $("#network-status"));
+    $("#lobby-name").text(playerObject.name);
   });
 
-  navigate("active-lobby");
   $("#player-list").empty()
                    .append("<h4>Player List</h4>")
                    .append(mm.insertPlayer({
@@ -105,8 +82,4 @@ function hostGame(evt) {
   );
 
   evt.preventDefault();
-}
-
-function leaveLobby() {
-
 }
