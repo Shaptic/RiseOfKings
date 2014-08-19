@@ -62,9 +62,9 @@ function hostGame(evt) {
   mm.sessionData.host = true;
   mm.sessionData.matchData = playerObject;
   mm.createSocket(function() {
-    navigate("active-lobby");
     playerObject.id = mm.peerID;
-    mm.createLobby(playerObject, $("#status"), $("#network-status"));
+    mm.createLobby(playerObject, $("#status"), $("#network-status"),
+                   function() { navigate("active-lobby"); });
     $("#lobby-name").text(playerObject.name);
   });
 
