@@ -154,7 +154,7 @@ def join():
         if id_ in [x.id for x in m.peers]:
             return make_response('Rejoin?', 403)
 
-        elif len(m.players) < m.playerCount:
+        elif len(m.peers) < m.playerCount:
             return make_response('Lobby full.', 403)
 
         elif m.host.id == host:
