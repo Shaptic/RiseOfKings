@@ -104,4 +104,13 @@ img {
 #network-status,
 #chat {
      height: 400px;
+     overflow: hidden;
+}
+
+#network-status span {
+    display: block;
+}
+
+#network-status span .error {
+    color: red;
 }
