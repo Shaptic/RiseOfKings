@@ -1,7 +1,3 @@
-var net     = net || {};
-net.helpers = net.helpers || {};
-net.config  = net.config  || {};
-
 net.MatchMakerState = {
     NEW:        1,
     WAITING:    2,
@@ -9,52 +5,6 @@ net.MatchMakerState = {
     CONNECTED:  4,
     LOST_LOBBY: 5
 };
-
-/*
- * Presents a simple interface for performing AJAX calls to the auth server.
- *  The `onReady` callback should accept a single parameter, namely the response
- *  object. On the other hand, the `onFail` callback should take 2 parameters;
- *  the first is the response object, and the second is the HTTP status code.
- *
- * @param   method  POST, GET, etc.
- * @param   URL     The URL to send the request to
- * @param   options An object containing a variety of possible options:
- *                  onReady -- Callback executed when a 200 reply is given
- *                  onFail  -- Callback executed when a non-200 reply is given
- *                  data    -- Data to send to the server on a POST request
- */
-net.helpers.ajax = function(method, URL, options) {
-    var onReady = options.onReady || function() {};
-    var onFail  = options.onFail  || function() {};
-
-    var http = new XMLHttpRequest();
-
-    http.onreadystatechange = function() {
-        if (http.readyState === 4) {
-            if (http.status === 200) {
-                onReady(http.responseText);
-            } else {
-                onFail(http.responseText, http.status);
-            }
-        }
-    };
-
-    if (method === "GET" && options.data) {
-        URL += '?' + (options.data || '');
-    }
-
-    http.open(method, URL, true);
-
-    if (method === "POST") {
-        http.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
-    }
-
-    if (zogl.debug) {
-        console.log(method, "sending", options.data, "to", URL);
-    }
-
-    http.send(options.data);
-}
 
 /*
  * Sets up the initial connection to the auth server.
@@ -79,12 +29,23 @@ net.MatchMaker = function() {
         matchData: {},      // All match info for re-establishing a lobby [host]
         playerObject: {}    // Player data like units, name, etc.
     };
+    this.networkState = {
+        'match': 0,
+        'ping': 0,
+        'command': 0
+    };
     this.peerID = '';
 };
 
-net.GameConnection = function() {
-};
-
+/*
+ * Establishes a connection to the PeerJS server and sets things up.
+ *  Upon connecting to the server, this will do various tasks that require the
+ *  PeerJS ID, such as set up chat, and the "Leave Lobby" button.
+ *  It will also execute an optional callback (no parameters) after the initial
+ *  setup (see `onSocketOpen()`).
+ *
+ * @param   callback    Function to be executed after a PeerJS ID is assigned
+ */
 net.MatchMaker.prototype.createSocket = function(callback) {
     var scope = this;
 
@@ -115,7 +76,10 @@ net.MatchMaker.prototype.createSocket = function(callback) {
                         "data": $("#chat-input").val()
                     })
                 });
-                scope.addChatMessage(scope.sessionData.playerObject, $(this).val());
+                scope.addChatMessage(
+                    scope.sessionData.playerObject,
+                    $(this).val()
+                ).insertBefore($("#chat-inset").find("input"));
                 $(this).val('');
             }
         });
@@ -129,51 +93,14 @@ net.MatchMaker.prototype.createSocket = function(callback) {
     });
 };
 
-
-net.MatchMaker.prototype.tick = function(elapsed) {
-
-};
-
-net.GameConnection.prototype.connect = function(addr) {
-    if (this.socket === undefined) {
-        this.createSocket(this.connect.bind(this));
-    } else {
-        this.socket.on("connection", function(conn) {
-            scope.onSocketConnection(conn);
-        });
-    }
-};
-
+/*
+ * Establishes internal state to indicate that the peer is connecting.
+ */
 net.MatchMaker.prototype.onSocketOpen = function(id) {
     var scope = this;
 
     this.peerID = id;
-    this.state  = net.MatchMakerState.CONNECTING;/*
-
-    net.helpers.ajax("POST", net.config.AUTH_URL + "/register/", {
-        onReady: function(resp) {
-            var json = JSON.parse(resp);
-
-            scope.sessionData.color = json["color"];
-            scope.sessionData.initialArmy.color = json["color"];
-            scope.setInitialArmyPosition(resp);
-            scope.tickHandle = setInterval(scope.tick.bind(scope), 200);
-
-            console.log("Established initial connection as", json["color"]);
-        },
-        data: "id=" + id
-    });*/
-};
-
-net.MatchMaker.prototype.setInitialArmyPosition = function(data) {
-
-};
-
-/*
- *
- */
-net.MatchMaker.prototype.onSocketConnection = function(connection) {
-
+    this.state  = net.MatchMakerState.CONNECTING;
 };
 
 /*
@@ -196,12 +123,25 @@ net.MatchMaker.prototype.onSocketConnection = function(connection) {
 net.MatchMaker.prototype.lobbyTick = function(statusNode) {
     var scope = this;
 
-    if (scope.state == net.MatchMakerState.LOST_LOBBY) {
+    if (this.state == net.MatchMakerState.LOST_LOBBY) {
         return;
+    }
+
+    // If there have been >2 unanswered AJAX calls, let's not send any more
+    // until we have a response.
+    // The state is reset in `onReady()` in the call.
+    if (this.networkState.match++ > 2) {
+        return;
+    }
+
+    if (this.networkState.match > 1) {
+        statusNode.append(this.networkState.match.toString() + " unanswered match requests.");
     }
 
     net.helpers.ajax("GET", net.config.AUTH_URL + "/match/", {
         onReady: function(resp) {
+            scope.networkState.match = 0;
+
             var json = JSON.parse(resp);
             var lobby = null;
 
@@ -211,15 +151,14 @@ net.MatchMaker.prototype.lobbyTick = function(statusNode) {
                 for (var j in match.players) {
                     if (match.players[j].id === scope.peerID) {
                         lobby = match;
+                        scope.sessionData.playerObject = match.players[j];
                         break;
                     }
                 }
             }
 
             if (!lobby) {
-                statusNode.append(
-                    $("<span/>").addClass("error").text("Lobby lost.")
-                );
+                statusNode.append(MESSAGES.CONNECTION_LOST_PEER);
 
                 // Let's try re-establishing a connection to the auth. server
                 // and creating a lobby again, if we are the host.
@@ -243,9 +182,9 @@ net.MatchMaker.prototype.lobbyTick = function(statusNode) {
             }
 
             if ($("#player-list").length > before) {
-                $("#network-status").append("Player joined.");
+                statusNode.append("Player joined.");
             } else if ($("#player-list").length < before) {
-                $("#network-status").append("Player left.");
+                statusNode.append("Player left.");
             }
 
             $("#lobby-name").text(lobby.name);
@@ -265,10 +204,12 @@ net.MatchMaker.prototype.lobbyTick = function(statusNode) {
     });
 };
 
-net.MatchMaker.prototype.createLobby = function(playerObject, statusNode, networkStatusNode) {
+net.MatchMaker.prototype.createLobby = function(playerObject, statusNode, networkStatusNode, postOpHandler) {
     var scope = this;
     this.state= net.MatchMakerState.CONNECTING;
     this.sessionData.playerObject = playerObject;
+
+    postOpHandler = postOpHandler || function() {};
 
     net.helpers.ajax("POST", net.config.AUTH_URL + "/match/", {
         onReady: function(resp) {
@@ -277,6 +218,7 @@ net.MatchMaker.prototype.createLobby = function(playerObject, statusNode, networ
 
             scope.state = net.MatchMakerState.CONNECTED;
             scope._setupTick(networkStatusNode);
+            postOpHandler();
         },
         data: jQuery.param(playerObject)
     });
@@ -335,35 +277,42 @@ net.MatchMaker.prototype._setupTick = function(statusNode) {
     var scope = this;
 
     var handle = setInterval(function() {
-        net.helpers.ajax("POST", net.config.AUTH_URL + "/ping/", {
-            onFail: function(resp, status) {
-                var node = MESSAGES.CONNECTION_LOST_AUTH;
-                node.text(node.text() + resp);
-                statusNode.append(node);
-                scope.state = net.MatchMakerState.LOST_LOBBY;
-                clearInterval(handle);
-            },
-            data: jQuery.param({
-                "id": scope.peerID
-            })
-        });
+        if (scope.networkState.ping <= 2) {
+            net.helpers.ajax("POST", net.config.AUTH_URL + "/ping/", {
+                onFail: function(resp, status) {
+                    scope.networkState.ping = 0;
+                    var node = MESSAGES.CONNECTION_LOST_AUTH;
+                    node.text(node.text() + resp);
+                    statusNode.append(node);
+                    scope.state = net.MatchMakerState.LOST_LOBBY;
+                    clearInterval(handle);
+                },
+                data: jQuery.param({
+                    "id": scope.peerID
+                })
+            });
+        }
 
-        net.helpers.ajax("GET", net.config.AUTH_URL + "/command/", {
-            onReady: function(resp) {
-                var cmds = JSON.parse(resp).commands;
-                for (var i in cmds) {
-                    var cmd = cmds[i];
-                    if (cmd.type === "CHAT" && cmd.from.id !== scope.peerID) {
-                        scope.addChatMessage(cmd.from, cmd.data).insertBefore(
-                            $("#chat-inset").find("input")
-                        );
+        if (scope.networkState.command <= 2) {
+            net.helpers.ajax("GET", net.config.AUTH_URL + "/command/", {
+                onReady: function(resp) {
+                    var cmds = JSON.parse(resp).commands;
+                    for (var i in cmds) {
+                        var cmd = cmds[i];
+
+                        // Skip chat messages that match our ID because we already
+                        // posted that message when ENTER was pressed.
+                        if (cmd.type === "CHAT" && cmd.from.id !== scope.peerID) {
+                            scope.addChatMessage(cmd.from, cmd.data)
+                                 .insertBefore($("#chat-inset").find("input"));
+                        }
                     }
-                }
-            },
-            data: jQuery.param({
-                "from": scope.peerID
-            })
-        });
+                },
+                data: jQuery.param({
+                    "from": scope.peerID
+                })
+            });
+        }
 
         scope.lobbyTick(statusNode);
         if (scope.state == net.MatchMakerState.LOST_LOBBY) {
