@@ -52,11 +52,15 @@ img {
     background-color:#438ccc;
     text-decoration: none;
     color: black;
-}.button:active {
+}.button:active:enabled {
     position:relative;
     top:1px;
 }.button:disabled {
     background-color: #ddd;
+    border:1px solid black;
+    -moz-box-shadow: 0px 1px 0px 0px #ddd;
+    -webkit-box-shadow: 0px 1px 0px 0px #ddd;
+    box-shadow: 0px 1px 0px 0px #ddd;
 }
 
 #lobby {
@@ -97,3 +101,7 @@ img {
     overflow: hidden;
 }
 
+#network-status,
+#chat {
+     height: 400px;
+}
