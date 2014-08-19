@@ -75,7 +75,9 @@ net.MatchMaker = function() {
     this.sessionData = {
         initialArmy: {},
         host: false,
-        matchData: {}       // for hosting a lobby to re-establish a connection
+        attempts: 0,        // Attempts made to re-establish a lobby [host]
+        matchData: {},      // All match info for re-establishing a lobby [host]
+        playerObject: {}    // Player data like units, name, etc.
     };
     this.peerID = '';
 };
@@ -113,6 +115,7 @@ net.MatchMaker.prototype.createSocket = function(callback) {
                         "data": $("#chat-input").val()
                     })
                 });
+                scope.addChatMessage(scope.sessionData.playerObject, $(this).val());
                 $(this).val('');
             }
         });
@@ -193,6 +196,10 @@ net.MatchMaker.prototype.onSocketConnection = function(connection) {
 net.MatchMaker.prototype.lobbyTick = function(statusNode) {
     var scope = this;
 
+    if (scope.state == net.MatchMakerState.LOST_LOBBY) {
+        return;
+    }
+
     net.helpers.ajax("GET", net.config.AUTH_URL + "/match/", {
         onReady: function(resp) {
             var json = JSON.parse(resp);
@@ -211,27 +218,24 @@ net.MatchMaker.prototype.lobbyTick = function(statusNode) {
 
             if (!lobby) {
                 statusNode.append(
-                    $("<span/>").css("color", "red").css("display", "block")
-                                .text("Lost connection to server.")
+                    $("<span/>").addClass("error").text("Lobby lost.")
                 );
 
                 // Let's try re-establishing a connection to the auth. server
                 // and creating a lobby again, if we are the host.
-                if (scope.sessionData.host) {
-                    statusNode.append(
-                        $("<span/>").css("display", "block").text(
-                            "Attempting to re-establish a connection..."
-                        )
-                    );
+                if (scope.sessionData.host && scope.sessionData.attempts++ < 1) {
+                    statusNode.append(MESSAGES.CONNECTION_LOST_HOST);
                     scope.createLobby(scope.sessionData.matchData,
                                       $("#status"), statusNode);
+                } else {
+                    statusNode.append(MESSAGES.CONNECTION_LOST);
                 }
 
                 scope.state = net.MatchMakerState.LOST_LOBBY;
                 return;
             }
 
-            var before = $("#player-list").length;
+            var before = parseInt($("#player-list").length);
 
             var pl = $("#player-list").empty().append("<h4>Player List</h4>");
             for (var i in match.players) {
@@ -247,18 +251,24 @@ net.MatchMaker.prototype.lobbyTick = function(statusNode) {
             $("#lobby-name").text(lobby.name);
             var rl = $("#match-rules").empty().append("<h4>Rules</h4>");
             var row = $("<div/>").addClass("row");
-            var col1= $("<div/>").addClass("col-sm-3").html("<b>Players</b>");
-            var col2= $("<div/>").addClass("col-sm-3").text(lobby.playerCount);
+            var col1= $("<div/>").addClass("col-sm-5").html("<b>Players</b>");
+            var col2= $("<div/>").addClass("col-sm-7").text(lobby.playerCount);
 
-            rl.append(row.append(col1, col2));
+            row.append(col1, col2);
+
+            var row2 = $("<div/>").addClass("row");
+            var col1= $("<div/>").addClass("col-sm-5").html("<b>Max Units</b>");
+            var col2= $("<div/>").addClass("col-sm-7").text(lobby.maxUnits);
+
+            rl.append(row, row2.append(col1, col2));
         }
     });
 };
 
-net.MatchMaker.prototype.createLobby = function(playerObject, statusNode,
-                                                networkStatusNode) {
+net.MatchMaker.prototype.createLobby = function(playerObject, statusNode, networkStatusNode) {
     var scope = this;
     this.state= net.MatchMakerState.CONNECTING;
+    this.sessionData.playerObject = playerObject;
 
     net.helpers.ajax("POST", net.config.AUTH_URL + "/match/", {
         onReady: function(resp) {
@@ -272,10 +282,10 @@ net.MatchMaker.prototype.createLobby = function(playerObject, statusNode,
     });
 };
 
-net.MatchMaker.prototype.joinLobby = function(playerObject, hostObject,
-                                              networkStatusNode) {
+net.MatchMaker.prototype.joinLobby = function(playerObject, hostObject, networkStatusNode) {
     var scope = this;
     this.state= net.MatchMakerState.CONNECTING;
+    this.sessionData.playerObject = playerObject;
 
     net.helpers.ajax("POST", net.config.AUTH_URL + "/join/", {
         onReady: function(resp) {
@@ -311,19 +321,31 @@ net.MatchMaker.prototype.insertPlayer = function(obj) {
     return a.append(b, c, d, e, f);
 };
 
+net.MatchMaker.prototype.addChatMessage = function(from, msg) {
+    var row = $("<div/>").addClass("row").css("text-align", "left");
+    var nickText = $("<span/>").css("color", from.color).text(from.nick);
+    var nick = $("<div/>").addClass("col-sm-3 chat-nick").append(nickText);
+    var chat = $("<div/>").addClass("col-sm-9 chat-text")
+                          .append($("<span/>").text(msg));
+
+    return row.append(nick, chat);
+};
+
 net.MatchMaker.prototype._setupTick = function(statusNode) {
     var scope = this;
 
     var handle = setInterval(function() {
         net.helpers.ajax("POST", net.config.AUTH_URL + "/ping/", {
-            data: "id=" + scope.peerID,
             onFail: function(resp, status) {
-                statusNode.append(
-                    $("<span/>").css("color", "red").css("display", "block")
-                                .text("Connection to authorization server lost: " + resp)
-                );
+                var node = MESSAGES.CONNECTION_LOST_AUTH;
+                node.text(node.text() + resp);
+                statusNode.append(node);
+                scope.state = net.MatchMakerState.LOST_LOBBY;
                 clearInterval(handle);
-            }
+            },
+            data: jQuery.param({
+                "id": scope.peerID
+            })
         });
 
         net.helpers.ajax("GET", net.config.AUTH_URL + "/command/", {
@@ -331,18 +353,10 @@ net.MatchMaker.prototype._setupTick = function(statusNode) {
                 var cmds = JSON.parse(resp).commands;
                 for (var i in cmds) {
                     var cmd = cmds[i];
-                    if (cmd.type === "CHAT") {
-                        var row = $("<div/>").addClass("row")
-                                             .css("text-align", "left");
-                        var nickText = $("<span/>").css("color", cmd.from.color)
-                                                   .text(cmd.from.nick);
-                        var nick = $("<div/>").addClass("col-sm-3 chat-nick")
-                                              .append(nickText);
-                        var msg  = $("<div/>").addClass("col-sm-9 chat-text")
-                                              .append($("<span/>").text(cmd.data));
-                        row.append(nick, msg);
-
-                        row.insertBefore($("#chat-inset").find('input'));
+                    if (cmd.type === "CHAT" && cmd.from.id !== scope.peerID) {
+                        scope.addChatMessage(cmd.from, cmd.data).insertBefore(
+                            $("#chat-inset").find("input")
+                        );
                     }
                 }
             },
