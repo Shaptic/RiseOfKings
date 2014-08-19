@@ -145,7 +145,7 @@
             </div>
           </div>
 
-          <button type="submit" class="button" id="host-btn"
+          <button type="submit" class="button" id="match-host-btn"
                   style="width: 10em">Host Match</button>
 
            <div id="status"></div>
@@ -156,7 +156,7 @@
     <div class="container" id="active-lobby">
 
       <div class="starter-template">
-        <h1>Lobby Name</h1>
+        <h1 id="lobby-name">Lobby Name</h1>
 
         <div class="row">
           <div class="col-sm-7" id="player-list"
@@ -174,32 +174,14 @@
 
         <div class="row">
           <div class="col-sm-7" id="chat"
-               style="border: 1px solid black; margin-top: 5px; height: 400px">
+               style="border: 1px solid black; margin-top: 5px;">
 
             <h4>Chat</h4>
 
             <div id="chat-inset" style="height: 90%;">
-              <div class="row" style="text-align: left;">
-                <div class="col-sm-2 chat-nick">
-                  <span style="color: red;">zidsal</span>
-                </div>
-                <div class="col-sm-10 chat-text">
-                  <span>i like dicks</span>
-                </div>
-              </div>
-
-              <div class="row" style="text-align: left;">
-                <div class="col-sm-2 chat-nick">
-                  <span style="color: blue;">halcyon</span>
-                </div>
-                <div class="col-sm-10 chat-text">
-                  <span>i know</span>
-                </div>
-              </div>
-
               <div style="text-align: left;">
                 <input type="text" style="width: 100%; margin-top: 10px"
-                       placeholder="Chat here...">
+                       id="chat-input" placeholder="Chat here...">
                 </input>
               </div>
             </div>
@@ -214,7 +196,7 @@
 
         <div class="navigation" style="text-align: left; margin-top: 2em;">
           <button class="button">Start Game</button>
-          <button class="button" onclick="leaveLobby();">Leave Lobby</button>
+          <button class="button" id="leave-btn">Leave Lobby</button>
         </div>
 
       </div>
