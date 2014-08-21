@@ -9,9 +9,11 @@ net.helpers = net.helpers || {};
  * @param   method  POST, GET, etc.
  * @param   URL     The URL to send the request to
  * @param   options An object containing a variety of possible options:
- *                  onReady -- Callback executed when a 200 reply is given
- *                  onFail  -- Callback executed when a non-200 reply is given
- *                  data    -- Data to send to the server on a POST request
+ *                  onReady     -- Callback executed when a 200 reply is given
+ *                  onFail      -- Callback executed when a non-200 reply is given
+ *                  onTimeout   -- Callback executed when time (in ms) elapses w/o a response
+ *                  timeout     -- In union with onTimeout to specify time in ms to wait
+ *                  data        -- Data to send to the server on a POST request
  */
 net.helpers.ajax = function(method, URL, options) {
     var onReady = options.onReady || function() {};
@@ -34,6 +36,13 @@ net.helpers.ajax = function(method, URL, options) {
     }
 
     http.open(method, URL, true);
+
+    if (options.timeout) {
+        http.timeout = options.timeout;
+        if (options.onTimeout) {
+            http.ontimeout = options.onTimeout;
+        }
+    }
 
     if (method === "POST") {
         http.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
