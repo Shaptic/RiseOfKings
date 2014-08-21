@@ -68,7 +68,7 @@ net.MatchMaker.prototype.createSocket = function(callback) {
         // Register ourselves with the chat input field, allowing for
         // sending messages and whatnot.
         $("#chat-input").on("keyup", function(evt) {
-            if (evt.which === 13) {
+            if (evt.which === 13 && $.trim($(this).val())) {
                 net.helpers.ajax("POST", net.config.AUTH_URL + "/command/", {
                     data: jQuery.param({
                         "from": scope.peerID,
@@ -76,10 +76,12 @@ net.MatchMaker.prototype.createSocket = function(callback) {
                         "data": $("#chat-input").val()
                     })
                 });
+
                 scope.addChatMessage(
                     scope.sessionData.playerObject,
                     $(this).val()
-                ).insertBefore($("#chat-inset").find("input"));
+                ).appendTo($("#chat-content"));
+
                 $(this).val('');
             }
         });
@@ -135,7 +137,9 @@ net.MatchMaker.prototype.lobbyTick = function(statusNode) {
     }
 
     if (this.networkState.match > 1) {
-        statusNode.append(this.networkState.match.toString() + " unanswered match requests.");
+        statusNode.append($("<span/>").text(
+            this.networkState.match.toString() + " unanswered match requests.")
+        );
     }
 
     net.helpers.ajax("GET", net.config.AUTH_URL + "/match/", {
@@ -174,32 +178,7 @@ net.MatchMaker.prototype.lobbyTick = function(statusNode) {
                 return;
             }
 
-            var before = parseInt($("#player-list").length);
-
-            var pl = $("#player-list").empty().append("<h4>Player List</h4>");
-            for (var i in match.players) {
-                pl.append(scope.insertPlayer(match.players[i]));
-            }
-
-            if ($("#player-list").length > before) {
-                statusNode.append("Player joined.");
-            } else if ($("#player-list").length < before) {
-                statusNode.append("Player left.");
-            }
-
-            $("#lobby-name").text(lobby.name);
-            var rl = $("#match-rules").empty().append("<h4>Rules</h4>");
-            var row = $("<div/>").addClass("row");
-            var col1= $("<div/>").addClass("col-sm-5").html("<b>Players</b>");
-            var col2= $("<div/>").addClass("col-sm-7").text(lobby.playerCount);
-
-            row.append(col1, col2);
-
-            var row2 = $("<div/>").addClass("row");
-            var col1= $("<div/>").addClass("col-sm-5").html("<b>Max Units</b>");
-            var col2= $("<div/>").addClass("col-sm-7").text(lobby.maxUnits);
-
-            rl.append(row, row2.append(col1, col2));
+            scope.updateLobby(lobby, statusNode);
         }
     });
 };
@@ -234,12 +213,44 @@ net.MatchMaker.prototype.joinLobby = function(playerObject, hostObject, networkS
             navigate("active-lobby");
             scope.state = net.MatchMakerState.CONNECTED;
             scope._setupTick(networkStatusNode);
+            scope.updateLobby(JSON.parse(resp).data, networkStatusNode);
         },
         data: jQuery.param({
             "from": playerObject,
             "to": hostObject
         })
     });
+};
+
+net.MatchMaker.prototype.updateLobby = function(matchData, statusNode) {
+    var before = parseInt($("#player-list").children().length);
+
+    var pl = $("#player-list").empty().append("<h4>Player List</h4>");
+    for (var i in matchData.players) {
+        pl.append(this.insertPlayer(matchData.players[i]));
+    }
+
+    var after = pl.children().length;
+
+    if (after > before) {
+        statusNode.append("<span>Player joined.</span>");
+    } else if (after < before) {
+        statusNode.append("<span>Player left.</span>");
+    }
+
+    $("#lobby-name").text(matchData.name);
+    var rl = $("#match-rules").empty().append("<h4>Rules</h4>");
+    var row = $("<div/>").addClass("row");
+    var col1= $("<div/>").addClass("col-sm-5").html("<b>Players</b>");
+    var col2= $("<div/>").addClass("col-sm-7").text(matchData.playerCount);
+
+    row.append(col1, col2);
+
+    var row2 = $("<div/>").addClass("row");
+    var col1= $("<div/>").addClass("col-sm-5").html("<b>Max Units</b>");
+    var col2= $("<div/>").addClass("col-sm-7").text(matchData.maxUnits);
+
+    rl.append(row, row2.append(col1, col2));
 };
 
 net.MatchMaker.prototype.insertPlayer = function(obj) {
@@ -270,15 +281,30 @@ net.MatchMaker.prototype.addChatMessage = function(from, msg) {
     var chat = $("<div/>").addClass("col-sm-9 chat-text")
                           .append($("<span/>").text(msg));
 
-    return row.append(nick, chat);
+    var row = row.append(nick, chat);
+
+    var elem = $("#chat-content");
+    if (!elem.data("scrolling") ||
+         elem.scrollTop === elem.height()) {
+
+        elem.animate({
+            scrollTop: elem.height()
+        }).data("scrolling", false);
+    }
+
+    return row;
 };
 
 net.MatchMaker.prototype._setupTick = function(statusNode) {
     var scope = this;
 
     var handle = setInterval(function() {
-        if (scope.networkState.ping <= 2) {
+        if (scope.networkState.ping++ <= 2) {
+
             net.helpers.ajax("POST", net.config.AUTH_URL + "/ping/", {
+                onReady: function() {
+                    scope.networkState.ping = 0;
+                },
                 onFail: function(resp, status) {
                     scope.networkState.ping = 0;
                     var node = MESSAGES.CONNECTION_LOST_AUTH;
@@ -293,9 +319,11 @@ net.MatchMaker.prototype._setupTick = function(statusNode) {
             });
         }
 
-        if (scope.networkState.command <= 2) {
+        if (scope.networkState.command++ <= 2) {
             net.helpers.ajax("GET", net.config.AUTH_URL + "/command/", {
                 onReady: function(resp) {
+                    scope.networkState.command = 0;
+
                     var cmds = JSON.parse(resp).commands;
                     for (var i in cmds) {
                         var cmd = cmds[i];
@@ -304,9 +332,12 @@ net.MatchMaker.prototype._setupTick = function(statusNode) {
                         // posted that message when ENTER was pressed.
                         if (cmd.type === "CHAT" && cmd.from.id !== scope.peerID) {
                             scope.addChatMessage(cmd.from, cmd.data)
-                                 .insertBefore($("#chat-inset").find("input"));
+                                 .appendTo($("#chat-content"));
                         }
                     }
+                },
+                onFail: function() {
+                    scope.networkState.command = 0;
                 },
                 data: jQuery.param({
                     "from": scope.peerID
