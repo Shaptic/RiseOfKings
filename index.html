@@ -172,7 +172,10 @@
 
             <h4>Chat</h4>
 
-            <div id="chat-inset" style="height: 90%;">
+            <div id="chat-inset">
+              <div id="chat-content">
+              </div>
+
               <div style="text-align: left;">
                 <input type="text" class="col-sm-12" id="chat-input" placeholder="Chat here...">
                 </input>
@@ -216,11 +219,20 @@
 
     <script>
       $(function() {
-        zogl.debug = true;
+        //zogl.debug = true;
         refreshBrowser();
         navigate("browser");
 
-        $('#host-form').on('submit', hostGame);
+        $("#host-form").on("submit", hostGame);
+        $("#chat-content").on("scroll", function() {
+          var e = $(this);
+
+          console.log(e.scrollTop(), e.height());
+
+          $(this).data("scrolling", e.scrollTop() !== e.height());
+
+          console.log("scroll", ($(this).data("scrolling") === true ? "active" : "inactive"));
+        });
       });
     </script>
 </body>

@@ -110,15 +110,23 @@ img {
 
 #chat-inset {
     background-color: #DDD;
+    height: 90%;
     padding: 10px;
+    padding-bottom: 3em;
     border: 3px inset gray;
-    overflow: hidden;
+}
+
+#chat-inset #chat-content {
+    height: 100%;
+    overflow-x: hidden;
+    overflow-y: scroll;
 }
 
 #chat-inset input {
     position: absolute;
     bottom: 1em;
-    width: 91%;
+    width: 89%;
+    padding-left: 0;
 }
 
 #network-status span {
