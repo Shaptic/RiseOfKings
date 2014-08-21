@@ -154,16 +154,16 @@ def join():
         if id_ in [x.id for x in m.peers]:
             return make_response('Rejoin?', 403)
 
-        elif len(m.peers) == m.playerCount:
-            print "Lobby (host %s) is full. (%d/%d)" (
-                m.host.id, len(m.peers), len(m.playerCount)
-            )
-            return make_response('Lobby full.', 403)
-
         elif m.host.id == host:
             break
     else:
         return make_response('No such match.', 404)
+
+    if len(m.peers) >= int(m.playerCount):
+        print "Lobby (host %s) is full. (%d/%d)" (
+            m.host.id, len(m.peers), int(m.playerCount)
+        )
+        return make_response('Lobby full.', 403)
 
     m.addPeer(peer)
     return make_response(jsonify({
