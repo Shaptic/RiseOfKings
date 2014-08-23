@@ -26,7 +26,7 @@
         margin-left: 5px;
       }
 
-      #browser, #host, #active-lobby {
+      #browser, #host, #active-lobby, #join-prompt {
         display: none;
       }
 
@@ -141,6 +141,10 @@
 
           <button type="submit" class="button" id="match-host-btn"
                   style="width: 10em">Host Match</button>
+          <button type="submit" class="button" id="match-host-btn"
+                  style="width: 10em" onclick="navigate('browser');">
+            Return to Lobby Browser
+          </button>
 
            <div id="status"></div>
         </form>
@@ -198,6 +202,37 @@
       </div>
     </div>
 
+    <div class="container" id="join-prompt">
+
+      <div class="starter-template">
+        <h1>Select Unit Loadout</h1>
+
+        <form class="form-horizontal" id="loadout-form">
+          <div class="form-group">
+            <label class="col-sm-2 control-label">Unit Loadout:</label>
+            <div class="col-sm-2">
+              <input type="number" id="loadout-unit-knight" class="form-control"
+                     min="0" value="0">
+              <span class="help-block">Knights</span>
+            </div>
+            <div class="col-sm-2">
+              <input type="number" id="loadout-unit-spear" class="form-control"
+                     min="0" value="0">
+              <span class="help-block">Spearmen</span>
+            </div>
+            <div class="col-sm-2">
+              <input type="number" id="loadout-unit-archer" class="form-control"
+                     min="0" value="0">
+              <span class="help-block">Archers</span>
+            </div>
+          </div>
+
+          <button type="submit" class="button" id="join-match-btn"
+                  style="width: 10em">Join Game</button>
+        </form>
+      </div>
+    </div>
+
     <!-- HTML5 shim and Respond.js IE8 support of HTML5 elements and media queries -->
     <!--[if lt IE 9]>
       <script src="https://oss.maxcdn.com/html5shiv/3.7.2/html5shiv.min.js"></script>
@@ -219,11 +254,12 @@
 
     <script>
       $(function() {
-        //zogl.debug = true;
+        zogl.debug = true;
         refreshBrowser();
         navigate("browser");
 
         $("#host-form").on("submit", hostGame);
+        $("#loadout-form").on("submit", joinGame);
         $("#chat-content").on("scroll", function() {
           var e = $(this);
 

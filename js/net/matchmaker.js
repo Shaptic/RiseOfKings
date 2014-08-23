@@ -216,7 +216,10 @@ net.MatchMaker.prototype.joinLobby = function(playerObject, hostObject, networkS
             scope.updateLobby(JSON.parse(resp).data, networkStatusNode);
         },
         data: jQuery.param({
-            "from": playerObject,
+            "from": playerObject.id,
+            "knights": playerObject.knights || 0,
+            "spears":  playerObject.spears  || 0,
+            "archers": playerObject.archers || 0,
             "to": hostObject
         })
     });

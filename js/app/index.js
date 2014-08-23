@@ -36,11 +36,7 @@ function refreshBrowser() {
             row.addClass("active-match");
             $("#join-btn").attr("disabled", false);
             $("#join-btn").on("click", function(evt) {
-              var mm = new net.MatchMaker();
-              mm.createSocket(function() {
-                mm.joinLobby(mm.peerID, row.find('.host-id').text(),
-                             $("#network-status"));
-              });
+              $("#join-prompt").show();
             });
           }
         }).html(
@@ -53,4 +49,23 @@ function refreshBrowser() {
       }
     }
   });
+}
+
+function joinGame(evt) {
+  var mm = new net.MatchMaker();
+  mm.createSocket(function() {
+    var pObj = {
+      "id": mm.peerID,
+      "knights": $("#loadout-unit-knight").val(),
+      "spears":  $("#loadout-unit-spear").val(),
+      "archers": $("#loadout-unit-archer").val()
+    };
+
+    mm.joinLobby(pObj, $("#lobby .active-match .host-id").text(),
+                 $("#network-status"));
+
+    $("#join-prompt").hide();
+  });
+
+  evt.preventDefault();
 }
