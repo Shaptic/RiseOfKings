@@ -143,11 +143,16 @@ def join():
     host = request.form['to']
 
     peer = None
+
     # Existing peer?
     if id_ in [x.id for x in gamePeers]:
         peer = [x for x in gamePeers if x.id == id_][0]
     else:
-        peer = Peer(id_, request.form.get('nick', 'RoK Joiner'))
+        peer = Peer(id_, request.form.get('nick', 'RoK Joiner'), units={
+            "knights":  request.form.get('knights', 0),
+            "spears":   request.form.get('spears',  0),
+            "archers":  request.form.get('archers', 0)
+        })
 
     # Find match
     for m in matches:
@@ -247,6 +252,8 @@ def validateMatches():
                     print 'Disconnected peer (id %s) from match %s (host %s) due to high ping.' % (
                         p.id, m.lobbyName, m.host.id
                     )
+                    m.colors[p.color] = True
+
         m.peers = tmp
 
     gamePeers = [p for p in gamePeers if t - p.last_ping < TIMEOUT_THRESHOLD]
