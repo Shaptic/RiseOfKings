@@ -139,12 +139,14 @@
             </div>
           </div>
 
-          <button type="submit" class="button" id="match-host-btn"
-                  style="width: 10em">Host Match</button>
-          <button type="submit" class="button" id="match-host-btn"
-                  style="width: 10em" onclick="navigate('browser');">
-            Return to Lobby Browser
-          </button>
+          <div class="row">
+            <button type="submit" class="button col-sm-2 col-sm-push-2" id="match-host-btn"
+                    style="width: 10em">Host Match</button>
+            <button class="button col-sm-2 col-sm-push-2" id="match-ret-btn" style="width: 10em"
+                    onclick="navigate('browser');">
+              Return to Lobby Browser
+            </button>
+          </div>
 
            <div id="status"></div>
         </form>
@@ -225,6 +227,14 @@
                      min="0" value="0">
               <span class="help-block">Archers</span>
             </div>
+          </div>
+
+          <div class="form-group">
+            <label class="col-sm-2 control-label">Nickname:</label>
+            <div class="col-sm-4">
+              <input type="text" id="loadout-nick" class="form-control"
+                     value="RoK Player">
+            </div>  
           </div>
 
           <button type="submit" class="button" id="join-match-btn"
