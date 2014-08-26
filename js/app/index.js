@@ -55,7 +55,8 @@ function joinGame(evt) {
   var mm = new net.MatchMaker();
   mm.createSocket(function() {
     var pObj = {
-      "id": mm.peerID,
+      "id":      mm.peerID,
+      "nick":    $("#loadout-nick").val(),
       "knights": $("#loadout-unit-knight").val(),
       "spears":  $("#loadout-unit-spear").val(),
       "archers": $("#loadout-unit-archer").val()

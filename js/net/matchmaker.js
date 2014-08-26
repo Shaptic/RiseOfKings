@@ -208,6 +208,9 @@ net.MatchMaker.prototype.joinLobby = function(playerObject, hostObject, networkS
     this.state= net.MatchMakerState.CONNECTING;
     this.sessionData.playerObject = playerObject;
 
+    playerObject.from = playerObject.id;
+    playerObject.to   = hostObject;
+
     net.helpers.ajax("POST", net.config.AUTH_URL + "/join/", {
         onReady: function(resp) {
             navigate("active-lobby");
@@ -215,13 +218,7 @@ net.MatchMaker.prototype.joinLobby = function(playerObject, hostObject, networkS
             scope._setupTick(networkStatusNode);
             scope.updateLobby(JSON.parse(resp).data, networkStatusNode);
         },
-        data: jQuery.param({
-            "from": playerObject.id,
-            "knights": playerObject.knights || 0,
-            "spears":  playerObject.spears  || 0,
-            "archers": playerObject.archers || 0,
-            "to": hostObject
-        })
+        data: jQuery.param(playerObject)
     });
 };
 
