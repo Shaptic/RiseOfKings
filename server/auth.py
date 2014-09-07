@@ -206,7 +206,7 @@ def command():
         command = {
             'from': senderObj.asJSON(),
             'type': request.form['type'],
-            'data': request.form['data']
+            'data': request.form.get('data', '')
         }
 
         print 'Sending %s command to %s.' % (
