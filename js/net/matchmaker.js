@@ -3,7 +3,8 @@ net.MatchMakerState = {
     WAITING:    2,
     CONNECTING: 3,
     CONNECTED:  4,
-    LOST_LOBBY: 5
+    LOST_LOBBY: 5,
+    PLAYING:    6
 };
 
 /*
@@ -92,6 +93,16 @@ net.MatchMaker.prototype.createSocket = function(callback) {
             });
             navigate("lobby-browser");
         });
+
+        $("#start-btn:enabled").on("click", function(evt) {
+            net.helpers.ajax("POST", net.config.AUTH_URL + "/command/", {
+                data: jQuery.param({
+                    "from": scope.peerID,
+                    "type": "START",
+                    "data": ""
+                })
+            });
+        });
     });
 };
 
@@ -125,7 +136,9 @@ net.MatchMaker.prototype.onSocketOpen = function(id) {
 net.MatchMaker.prototype.lobbyTick = function(statusNode) {
     var scope = this;
 
-    if (this.state == net.MatchMakerState.LOST_LOBBY) {
+    // Sanity check.
+    if (this.state === net.MatchMakerState.LOST_LOBBY ||
+        this.state === net.MatchMakerState.PLAYING) {
         return;
     }
 
@@ -155,6 +168,7 @@ net.MatchMaker.prototype.lobbyTick = function(statusNode) {
                 for (var j in match.players) {
                     if (match.players[j].id === scope.peerID) {
                         lobby = match;
+                        scope.sessionData.lobby = lobby;
                         scope.sessionData.playerObject = match.players[j];
                         break;
                     }
@@ -333,6 +347,42 @@ net.MatchMaker.prototype._setupTick = function(statusNode) {
                         if (cmd.type === "CHAT" && cmd.from.id !== scope.peerID) {
                             scope.addChatMessage(cmd.from, cmd.data)
                                  .appendTo($("#chat-content"));
+                        
+                        // START messages indicate that we are ready to close
+                        // all connections with the auth server and begin a pure
+                        // p2p-based game (subject to change to maintain
+                        // connection to allow mid-game joins). 
+                        } else if (cmd.type === "START") {
+                            console.log("Starting game.");
+
+                            statusNode.append($("<span/>").text("Starting game..."));
+
+                            scope.state == net.MatchMakerState.PLAYING;
+                            clearInterval(handle);
+                            
+                            /*
+                             * Establish a p2p connection to all of the current 
+                             * members of the match.
+                             *
+                             * The host will stay the host, so peers just need 
+                             * to listen in on their socket to get the 
+                             * host connection.
+                             */
+                            var p2p = new net.p2p(scope.socket, scope.sessionData)
+
+                            if (scope.sessionData.host) {
+                                console.log(scope.sessionData);
+
+                                for (var i in scope.sessionData.lobby.players) {
+                                    var p = scope.sessionData.lobby.players[i];
+                                    console.log(p);
+                                    p2p.addConnection(p.id);
+                                }
+                            }
+
+                            newGame(p2p);
+
+                            return;
                         }
                     }
                 },
@@ -346,7 +396,10 @@ net.MatchMaker.prototype._setupTick = function(statusNode) {
         }
 
         scope.lobbyTick(statusNode);
-        if (scope.state == net.MatchMakerState.LOST_LOBBY) {
+
+        // Sanity check.
+        if (scope.state === net.MatchMakerState.LOST_LOBBY || 
+            scope.state === net.MatchMakerState.PLAYING) {
             clearInterval(handle);
         }
     }, 1000);
