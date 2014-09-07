@@ -59,6 +59,8 @@ function hostGame(evt) {
     "archers":  $("#unit-archer").val()
   }
 
+  $("#start-btn").attr("disabled", false);
+
   mm.sessionData.host = true;
   mm.sessionData.matchData = playerObject;
   mm.createSocket(function() {

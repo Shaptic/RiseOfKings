@@ -2,6 +2,8 @@ function navigate(where) {
   $("#browser").hide();
   $("#host").hide();
   $("#active-lobby").hide();
+  $("#join-prompt");
+  $("#game").hide();
 
   $("#" + where).show();
   $(".nav li").removeClass();
