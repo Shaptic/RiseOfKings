@@ -19,6 +19,8 @@ img {
 }*/
 
 .button {
+    margin-right: 1em;
+    
     -moz-box-shadow: 0px 1px 0px 0px #bee2f9;
     -webkit-box-shadow: 0px 1px 0px 0px #bee2f9;
     box-shadow: 0px 1px 0px 0px #bee2f9;

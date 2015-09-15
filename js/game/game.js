@@ -27,17 +27,13 @@ var GameState = {
     PLAYING: 4
 };
 
-function Game() {
+function Game(p2p) {
     zogl.debug = false;
 
     var that = this;
 
     this.state = GameState.WAITING_FOR_PEERS;
-    this.socket = new rConnection({
-        "units": [{
-            "type": "archer"
-        }]
-    });
+    this.socket = p2p;
 
     this.window = new zogl.zWindow(WINDOW_SIZE.w, WINDOW_SIZE.h);
     this.window.init();
@@ -395,8 +391,9 @@ function refreshLobby() {
     });
 }
 
-window.onload = function() {
+function newGame(p2p) {
     zogl.debug = true;
     zogl.init(document.getElementById('webgl-canvas'));
-    var g = new Game();
+
+    var g = new Game(p2p);
 };

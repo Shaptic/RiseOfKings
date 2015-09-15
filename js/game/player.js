@@ -131,7 +131,8 @@ rPlayer.prototype.handleEvent = function(evt) {
 
         // Stop selecting.
         if (evt.button == 0 && this.selectionBox !== null) {
-            this.stopSelecting();
+                    this.stopSelecting();
+        }
 
         // Issue orders.
         } else if (evt.button == 2 && this.selection !== []) {
